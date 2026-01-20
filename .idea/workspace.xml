@@ -46,12 +46,21 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Python.Get_started.executor": "Run",
+    "Python.Syntx.executor": "Run",
     "Python.test.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
     "git-widget-placeholder": "master",
     "settings.editor.selected.configurable": "org.jetbrains.plugins.github.ui.GithubSettingsConfigurable"
+  },
+  "keyToStringList": {
+    "GitStage.ChangesTree.GroupingKeys": [
+      "directory",
+      "module",
+      "repository"
+    ]
   }
 }]]></component>
   <component name="SharedIndexes">
@@ -69,6 +78,43 @@
       <option name="presentableId" value="Default" />
       <updated>1768899334444</updated>
     </task>
+    <task id="LOCAL-00001" summary="Home">
+      <option name="closed" value="true" />
+      <created>1768900972946</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1768900972946</updated>
+    </task>
+    <task id="LOCAL-00002" summary="Home">
+      <option name="closed" value="true" />
+      <created>1768901035515</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1768901035515</updated>
+    </task>
+    <task id="LOCAL-00003" summary="Home">
+      <option name="closed" value="true" />
+      <created>1768901127381</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1768901127381</updated>
+    </task>
+    <task id="LOCAL-00004" summary="Home">
+      <option name="closed" value="true" />
+      <created>1768901252953</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1768901252953</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Home" />
+    <option name="LAST_COMMIT_MESSAGE" value="Home" />
   </component>
 </project>
