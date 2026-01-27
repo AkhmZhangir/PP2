@@ -48,6 +48,7 @@
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "Python.Get_started.executor": "Run",
     "Python.Syntx.executor": "Run",
+    "Python.args_kwargs.executor": "Run",
     "Python.data_types.executor": "Run",
     "Python.functions_arguments_returnvalues.executor": "Run",
     "Python.test.executor": "Run",
@@ -65,7 +66,14 @@
     ]
   }
 }]]></component>
-  <component name="RunManager" selected="Python.functions_arguments_returnvalues">
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\practice3" />
+      <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\practice3\functions" />
+      <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject" />
+    </key>
+  </component>
+  <component name="RunManager" selected="Python.args_kwargs">
     <configuration name="Get_started" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="PythonProject" />
       <option name="ENV_FILES" value="" />
@@ -80,6 +88,28 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/practice1/Get_started.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="args_kwargs" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="PythonProject" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/practice3" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="C:\Users\defX7\Desktop\Laptop\PythonProject\practice3\functions\args_kwargs.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -156,6 +186,7 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.args_kwargs" />
         <item itemvalue="Python.functions_arguments_returnvalues" />
         <item itemvalue="Python.test" />
         <item itemvalue="Python.data_types" />
@@ -298,7 +329,31 @@
       <option name="project" value="LOCAL" />
       <updated>1769503882985</updated>
     </task>
-    <option name="localTasksCounter" value="16" />
+    <task id="LOCAL-00016" summary="3">
+      <option name="closed" value="true" />
+      <created>1769503987497</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1769503987497</updated>
+    </task>
+    <task id="LOCAL-00017" summary="3">
+      <option name="closed" value="true" />
+      <created>1769504462904</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1769504462904</updated>
+    </task>
+    <task id="LOCAL-00018" summary="3">
+      <option name="closed" value="true" />
+      <created>1769505336544</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1769505336544</updated>
+    </task>
+    <option name="localTasksCounter" value="19" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
