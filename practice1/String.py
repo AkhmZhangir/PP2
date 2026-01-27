@@ -16,7 +16,7 @@ for x in "banana":
   print(x)
 
 a = "Hello, World!"
-print(len(a))
+print(a[-3:0])
 
 
 txt = "The best things in life are free!"
