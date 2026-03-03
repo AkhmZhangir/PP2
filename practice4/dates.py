@@ -1,5 +1,5 @@
 import datetime
-"""
+
 a=input()
 format="%Y-%m-%d %Z%z"
 d1=datetime.datetime.strptime(a, format)
@@ -51,4 +51,3 @@ delta = end_utc - start_utc
 seconds = int(delta.total_seconds())
 
 print(seconds)
-"""

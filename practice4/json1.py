@@ -1,5 +1,5 @@
 import json
-'''
+
 def patch_dict(src, patch):
     for key, p_val in patch.items():
         if p_val is None:
@@ -75,7 +75,7 @@ if not diffs:
 else:
     for line in sorted(diffs):
         print(line)
-'''
+
 a=input().strip()
 b=json.loads(a)
 for k,i in b.items():
