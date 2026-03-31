@@ -135,7 +135,7 @@ def main():
     while True:
         print("\nPHONEBOOK MENU")
         print("1 — импорт из CSV")
-        print("2 — добавить контакт (консоль)")
+        print("2 — добавить контакт")
         print("3 — обновить контакт")
         print("4 — найти контакты")
         print("5 — удалить контакт")
