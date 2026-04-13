@@ -1,0 +1,178 @@
+Index: test/test.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import re\r\na=input()\r\nb=re.search(r\"ab*\",a)\r\nprint(b.group())\r\n\r\nb=re.search(r\"ab{2,3}\",a)\r\nprint(b.group())\r\n\r\nb=re.findall(r\"[a-z]_[a-z]\",a)\r\nprint(*b)\r\n\r\nb=re.findall(r\"[A-Z][a-z]*\",a)\r\nprint(*b)\r\n\r\nb=re.findall(r\"^a.*b$\",a)\r\nprint(*b)\r\n\r\nprint(re.sub(r\"[ ,\\.]\", \":\", a))\r\n\r\nparts = [p for p in a.split(\"_\") if p]\r\nif not parts:\r\n    print(\"\")\r\nelse:\r\n    print(parts[0].lower() + \"\".join(p[:1].upper() + p[1:].lower() for p in parts[1:]))\r\n\r\nparts = [p for p in re.split(r\"(?=[A-Z])\", a) if p]\r\nprint(parts)\r\n\r\nprint(re.sub(r\"(?<!^)(?=[A-Z])\", \" \", a).strip())\r\n\r\nprint(re.sub(r\"(?<!^)(?=[A-Z])\", \"_\", a).lower())
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/test/test.py b/test/test.py
+--- a/test/test.py	(revision 8fb65322dc6a02609df1cbac4dfd193c5767e740)
++++ b/test/test.py	(date 1774877270471)
+@@ -1,31 +1,13 @@
+-import re
+-a=input()
+-b=re.search(r"ab*",a)
+-print(b.group())
+-
+-b=re.search(r"ab{2,3}",a)
+-print(b.group())
+-
+-b=re.findall(r"[a-z]_[a-z]",a)
+-print(*b)
+-
+-b=re.findall(r"[A-Z][a-z]*",a)
+-print(*b)
+-
+-b=re.findall(r"^a.*b$",a)
+-print(*b)
+-
+-print(re.sub(r"[ ,\.]", ":", a))
+-
+-parts = [p for p in a.split("_") if p]
+-if not parts:
+-    print("")
+-else:
+-    print(parts[0].lower() + "".join(p[:1].upper() + p[1:].lower() for p in parts[1:]))
+-
+-parts = [p for p in re.split(r"(?=[A-Z])", a) if p]
+-print(parts)
+-
+-print(re.sub(r"(?<!^)(?=[A-Z])", " ", a).strip())
+-
+-print(re.sub(r"(?<!^)(?=[A-Z])", "_", a).lower())
+\ No newline at end of file
++import json
++a=input().strip()
++b=json.loads(a)
++c=int(input())
++for i in range(c):
++    z=input().split(".")
++    for j,k in b.items():
++        if j == z[-1]:
++            print("nigge")
++        if isinstance(k,dict) and j != z[-1]:
++            for v,b in k.items():
++                if v == z[-1]:
++                    print("a")
+Index: test/pyagame test.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/test/pyagame test.py b/test/pyagame test.py
+new file mode 100644
+--- /dev/null	(date 1775814925666)
++++ b/test/pyagame test.py	(date 1775814925666)
+@@ -0,0 +1,111 @@
++import pygame
++
++pygame.init()
++
++screen=pygame.display.set_mode((800,600))
++screen.fill((255,255,255))
++font = pygame.font.SysFont("Arial", 20)
++clock=pygame.time.Clock()
++sf26=pygame.image.load("SF26.png").convert_alpha()
++sf26=pygame.transform.scale(sf26 ,( sf26.get_width()*0.1, sf26.get_height()*0.1))
++clock=pygame.time.Clock()
++f=0
++
++drawing=False
++lastpos=None
++WHITE = (255, 255, 255)
++BLACK = (0, 0, 0)
++RED = (255, 0, 0)
++GREEN = (0, 200, 0)
++BLUE = (0, 0, 255)
++GRAY = (200, 200, 200)
++
++red_btn = pygame.Rect(20, 20, 60, 40)
++green_btn = pygame.Rect(90, 20, 60, 40)
++blue_btn = pygame.Rect(160, 20, 60, 40)
++
++eraser_btn = pygame.Rect(250, 20, 100, 40)
++brush_btn = pygame.Rect(360, 20, 100, 40)
++
++line_btn = pygame.Rect(490, 20, 80, 40)
++circle_btn = pygame.Rect(580, 20, 90, 40)
++rect_btn = pygame.Rect(680, 20, 80, 40)
++current_color = BLUE
++tool = "brush"
++shape = "line"
++def ui():
++    pygame.draw.rect(screen, RED, red_btn)
++    pygame.draw.rect(screen, GREEN, green_btn)
++    pygame.draw.rect(screen, BLUE, blue_btn)
++
++    pygame.draw.rect(screen, GRAY, eraser_btn)
++    pygame.draw.rect(screen, GRAY, brush_btn)
++    pygame.draw.rect(screen, GRAY, line_btn)
++    pygame.draw.rect(screen, GRAY, circle_btn)
++    pygame.draw.rect(screen, GRAY, rect_btn)
++    red_text = font.render('Red', True, (0, 0, 0))
++    screen.blit(red_text, (35, 25))
++    blue_text = font.render('Green', True, (0, 0, 0))
++    screen.blit(blue_text, (115, 25))
++    green_text = font.render('Blue', True, (0, 0, 0))
++    screen.blit(green_text, (185, 25))
++
++    screen.blit(font.render("erase", True, BLACK), (270, 30))
++    screen.blit(font.render("brush", True, BLACK), (380, 30))
++    screen.blit(font.render("line", True, BLACK), (510, 30))
++    screen.blit(font.render("circle", True, BLACK), (595, 30))
++    screen.blit(font.render("rect", True, BLACK), (700, 30))
++while True:
++    f = f + 1
++    ui()
++    for event in pygame.event.get():
++        if event.type == pygame.QUIT:
++            pygame.quit()
++            exit()
++
++        if event.type == pygame.MOUSEBUTTONDOWN:
++            drawing = True
++            pos = event.pos
++            last_pos = event.pos
++            if red_btn.collidepoint(pos):
++                current_color = RED
++            elif green_btn.collidepoint(pos):
++                current_color = GREEN
++            elif blue_btn.collidepoint(pos):
++                current_color = BLUE
++            elif eraser_btn.collidepoint(pos):
++                tool = "eraser"
++            elif brush_btn.collidepoint(pos):
++                tool = "brush"
++            elif line_btn.collidepoint(pos):
++                shape = "line"
++            elif circle_btn.collidepoint(pos):
++                shape = "circle"
++            elif rect_btn.collidepoint(pos):
++                shape = "rect"
++            else:
++                drawing = True
++                last_pos = pos
++
++        if event.type == pygame.MOUSEBUTTONUP:
++            drawing = False
++            last_pos = None
++
++        elif event.type == pygame.MOUSEMOTION and drawing:
++            current_pos = event.pos
++
++            draw_color = WHITE if tool == "eraser" else current_color
++
++            if last_pos is not None:
++                if shape == "line":
++                    pygame.draw.line(screen, draw_color, last_pos, current_pos, 5)
++                elif shape == "circle":
++                    pygame.draw.circle(screen, draw_color, current_pos, 10)
++                elif shape == "rect":
++                    pygame.draw.rect(screen, draw_color, (current_pos[0], current_pos[1], 20, 20))
++
++            last_pos = current_pos
++
++
++    clock.tick(60)
++    pygame.display.update()
+\ No newline at end of file
