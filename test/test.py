@@ -1,31 +1,145 @@
-import re
-a=input()
-b=re.search(r"ab*",a)
-print(b.group())
+import pygame
+import math
+import sys
 
-b=re.search(r"ab{2,3}",a)
-print(b.group())
+pygame.init()
 
-b=re.findall(r"[a-z]_[a-z]",a)
-print(*b)
+WIDTH, HEIGHT = 800, 600
+TOOLBAR_H = 80
 
-b=re.findall(r"[A-Z][a-z]*",a)
-print(*b)
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Mini Paint")
 
-b=re.findall(r"^a.*b$",a)
-print(*b)
+font = pygame.font.SysFont("Arial", 20)
+clock = pygame.time.Clock()
 
-print(re.sub(r"[ ,\.]", ":", a))
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+RED = (255, 0, 0)
+GREEN = (0, 200, 0)
+BLUE = (0, 0, 255)
+GRAY = (200, 200, 200)
+DARK_GRAY = (140, 140, 140)
 
-parts = [p for p in a.split("_") if p]
-if not parts:
-    print("")
-else:
-    print(parts[0].lower() + "".join(p[:1].upper() + p[1:].lower() for p in parts[1:]))
+canvas = pygame.Surface((WIDTH, HEIGHT))
+canvas.fill(WHITE)
 
-parts = [p for p in re.split(r"(?=[A-Z])", a) if p]
-print(parts)
+drawing = False
+start_pos = (0, 0)
+current_pos = (0, 0)
+current_rect = None
 
-print(re.sub(r"(?<!^)(?=[A-Z])", " ", a).strip())
+current_color = BLUE
+tool = "line"
 
-print(re.sub(r"(?<!^)(?=[A-Z])", "_", a).lower())
+red_btn = pygame.Rect(20, 20, 60, 40)
+green_btn = pygame.Rect(90, 20, 60, 40)
+blue_btn = pygame.Rect(160, 20, 60, 40)
+
+line_btn = pygame.Rect(260, 20, 90, 40)
+rect_btn = pygame.Rect(370, 20, 90, 40)
+circle_btn = pygame.Rect(480, 20, 90, 40)
+clear_btn = pygame.Rect(590, 20, 90, 40)
+
+def draw_button(rect, text, bg_color, active=False):
+    color = DARK_GRAY if active else bg_color
+    pygame.draw.rect(screen, color, rect)
+    pygame.draw.rect(screen, BLACK, rect, 2)
+    txt = font.render(text, True, BLACK)
+    txt_rect = txt.get_rect(center=rect.center)
+    screen.blit(txt, txt_rect)
+
+def draw_ui():
+    pygame.draw.rect(screen, (230, 230, 230), (0, 0, WIDTH, TOOLBAR_H))
+
+    draw_button(red_btn, "Red", RED, current_color == RED)
+    draw_button(green_btn, "Green", GREEN, current_color == GREEN)
+    draw_button(blue_btn, "Blue", BLUE, current_color == BLUE)
+
+    draw_button(line_btn, "Line", GRAY, tool == "line")
+    draw_button(rect_btn, "Rect", GRAY, tool == "rect")
+    draw_button(circle_btn, "Circle", GRAY, tool == "circle")
+    draw_button(clear_btn, "Clear", GRAY, False)
+
+while True:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            pos = event.pos
+
+            if red_btn.collidepoint(pos):
+                current_color = RED
+            elif green_btn.collidepoint(pos):
+                current_color = GREEN
+            elif blue_btn.collidepoint(pos):
+                current_color = BLUE
+            elif line_btn.collidepoint(pos):
+                tool = "line"
+            elif rect_btn.collidepoint(pos):
+                tool = "rect"
+            elif circle_btn.collidepoint(pos):
+                tool = "circle"
+            elif clear_btn.collidepoint(pos):
+                canvas.fill(WHITE)
+            elif pos[1] > TOOLBAR_H:
+                drawing = True
+                start_pos = pos
+                current_pos = pos
+                current_rect = None
+
+        elif event.type == pygame.MOUSEMOTION and drawing:
+            current_pos = event.pos
+
+            if tool == "rect":
+                width = current_pos[0] - start_pos[0]
+                height = current_pos[1] - start_pos[1]
+                current_rect = pygame.Rect(start_pos, (width, height))
+                current_rect.normalize()
+
+        elif event.type == pygame.MOUSEBUTTONUP:
+            if drawing:
+                end_pos = event.pos
+
+                if tool == "line":
+                    pygame.draw.line(canvas, current_color, start_pos, end_pos, 3)
+
+                elif tool == "rect":
+                    width = end_pos[0] - start_pos[0]
+                    height = end_pos[1] - start_pos[1]
+                    final_rect = pygame.Rect(start_pos, (width, height))
+                    final_rect.normalize()
+                    pygame.draw.rect(canvas, current_color, final_rect, 2)
+
+                elif tool == "circle":
+                    radius = int(math.sqrt(
+                        (end_pos[0] - start_pos[0]) ** 2 +
+                        (end_pos[1] - start_pos[1]) ** 2
+                    ))
+                    pygame.draw.circle(canvas, current_color, start_pos, radius, 2)
+
+                drawing = False
+                current_rect = None
+
+    screen.fill(WHITE)
+    screen.blit(canvas, (0, 0))
+    draw_ui()
+
+    if drawing:
+        if tool == "line":
+            pygame.draw.line(screen, current_color, start_pos, current_pos, 3)
+
+        elif tool == "rect" and current_rect:
+            pygame.draw.rect(screen, current_color, current_rect, 2)
+
+        elif tool == "circle":
+            radius = int(math.sqrt(
+                (current_pos[0] - start_pos[0]) ** 2 +
+                (current_pos[1] - start_pos[1]) ** 2
+            ))
+            pygame.draw.circle(screen, current_color, start_pos, radius, 2)
+
+    pygame.display.flip()
+    clock.tick(60)
