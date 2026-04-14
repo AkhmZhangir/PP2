@@ -1,12 +1,11 @@
 import pygame
 import datetime
 import os
-import sys
 
 pygame.init()
 
 WIDTH, HEIGHT = 900, 900
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
+screen = pygame.display.set_mode((800, 800))
 pygame.display.set_caption("Mickey Clock")
 clock = pygame.time.Clock()
 
@@ -74,7 +73,7 @@ while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
-            sys.exit()
+            exit()
 
     draw_clock(screen, WIDTH // 2, HEIGHT // 2)
 
