@@ -4,14 +4,14 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="72a855c3-dedf-421c-9470-6d5d49bf2e6b" name="Changes" comment="practice 10 and new interpreter">
-      <change afterPath="$PROJECT_DIR$/practice9/clock.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/practice9/clock_experiment.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/practice9/hand.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/practice9/line.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/practice9/mick.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/practice9/mouce.png" afterDir="false" />
+    <list default="true" id="72a855c3-dedf-421c-9470-6d5d49bf2e6b" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/pracrice5/raw.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/pracrice5/regX.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/practice4/json.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/PythonProject.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/PythonProject.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/test.py" beforeDir="false" afterPath="$PROJECT_DIR$/test/test.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -58,7 +58,6 @@
     "Python.Get_started.executor": "Run",
     "Python.Syntx.executor": "Run",
     "Python.args_kwargs.executor": "Run",
-    "Python.clock.executor": "Run",
     "Python.clock_experiment.executor": "Run",
     "Python.config (1).executor": "Run",
     "Python.config.executor": "Run",
@@ -67,12 +66,11 @@
     "Python.create_tables.executor": "Run",
     "Python.data_types.executor": "Run",
     "Python.functions_arguments_returnvalues.executor": "Run",
+    "Python.music_player_pygame.executor": "Run",
     "Python.paint.executor": "Run",
     "Python.phonebook (1).executor": "Run",
     "Python.phonebook.executor": "Run",
-    "Python.pyagame test.executor": "Run",
     "Python.test.executor": "Run",
-    "Python.test2.executor": "Run",
     "RunOnceActivity.MCP Project settings loaded": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
@@ -80,7 +78,7 @@
     "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
     "git-widget-placeholder": "master",
     "junie.onboarding.icon.badge.shown": "true",
-    "last_opened_file_path": "C:/Users/misti/PycharmProjects/PP2/practice9",
+    "last_opened_file_path": "C:/Users/defX7/Desktop/Laptop/PythonProject/practice9/MusicPlayer/music",
     "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable",
     "to.speed.mode.migration.done": "true"
   },
@@ -94,39 +92,19 @@
 }]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
-      <recent name="C:\Users\misti\PycharmProjects\PP2\practice9" />
+      <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\practice9\MusicPlayer\music" />
+      <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\practice9\MusicPlayer" />
       <recent name="C:\Users\misti\PycharmProjects\PP2\pracrice5" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\practice9\MusicPlayer\music" />
+      <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\practice9\clock" />
       <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\practice3" />
       <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\practice3\functions" />
       <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject" />
     </key>
   </component>
   <component name="RunManager" selected="Python.clock_experiment">
-    <configuration name="clock" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="PythonProject" />
-      <option name="ENV_FILES" value="" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/practice9" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="RUN_TOOL" value="" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/practice9/clock.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
     <configuration name="clock_experiment" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="PythonProject" />
       <option name="ENV_FILES" value="" />
@@ -136,12 +114,55 @@
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/practice9" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/practice9/clock" />
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="RUN_TOOL" value="" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/practice9/clock_experiment.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/practice9/clock/clock_experiment.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="connect (1)" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="PythonProject" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/practice7-8" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/practice7-8/connect.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="music_player_pygame" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="PythonProject" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/practice9/MusicPlayer" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/practice9/MusicPlayer/music_player_pygame.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -163,7 +184,6 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="RUN_TOOL" value="" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/practice10/paint.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
@@ -173,7 +193,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="test" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="phonebook (1)" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="PythonProject" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -182,35 +202,11 @@
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/test" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/practice7-8" />
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="RUN_TOOL" value="" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/test/test.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
-    <configuration name="test2" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="PythonProject" />
-      <option name="ENV_FILES" value="" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/test" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="RUN_TOOL" value="" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/test/test2.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/practice7-8/phonebook.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -222,10 +218,10 @@
     <recent_temporary>
       <list>
         <item itemvalue="Python.clock_experiment" />
+        <item itemvalue="Python.music_player_pygame" />
         <item itemvalue="Python.paint" />
-        <item itemvalue="Python.clock" />
-        <item itemvalue="Python.test2" />
-        <item itemvalue="Python.test" />
+        <item itemvalue="Python.phonebook (1)" />
+        <item itemvalue="Python.connect (1)" />
       </list>
     </recent_temporary>
   </component>
@@ -420,22 +416,13 @@
       <option name="project" value="LOCAL" />
       <updated>1774884471021</updated>
     </task>
-    <task id="LOCAL-00023" summary="practice 10 and new interpreter">
-      <option name="closed" value="true" />
-      <created>1776087116231</created>
-      <option name="number" value="00023" />
-      <option name="presentableId" value="LOCAL-00023" />
-      <option name="project" value="LOCAL" />
-      <updated>1776087116231</updated>
-    </task>
-    <option name="localTasksCounter" value="24" />
+    <option name="localTasksCounter" value="23" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Home" />
     <MESSAGE value="broken file fix" />
     <MESSAGE value="3" />
-    <MESSAGE value="practice 10 and new interpreter" />
-    <option name="LAST_COMMIT_MESSAGE" value="practice 10 and new interpreter" />
+    <option name="LAST_COMMIT_MESSAGE" value="3" />
   </component>
 </project>
