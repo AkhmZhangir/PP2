@@ -1,13 +1,11 @@
 import pygame
 import math
-import sys
 
 pygame.init()
 
-WIDTH, HEIGHT = 900, 600
-TOOLBAR_H = 80
 
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
+
+screen = pygame.display.set_mode((900,600))
 pygame.display.set_caption("Mini Paint")
 
 font = pygame.font.SysFont("Arial", 20)
@@ -21,7 +19,7 @@ BLUE = (0, 0, 255)
 GRAY = (200, 200, 200)
 DARK_GRAY = (140, 140, 140)
 
-canvas = pygame.Surface((WIDTH, HEIGHT))
+canvas = pygame.Surface((900,600))
 canvas.fill(WHITE)
 
 drawing = False
@@ -53,7 +51,7 @@ def draw_button(rect, text, bg_color, active=False):
     screen.blit(txt, txt_rect)
 
 def draw_ui():
-    pygame.draw.rect(screen, (230, 230, 230), (0, 0, WIDTH, TOOLBAR_H))
+    pygame.draw.rect(screen, (230, 230, 230), (0, 0, 900, 80))
 
     draw_button(red_btn, "Red", RED, current_color == RED)
     draw_button(green_btn, "Green", GREEN, current_color == GREEN)
@@ -70,7 +68,7 @@ while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
-            sys.exit()
+            exit()
 
         elif event.type == pygame.MOUSEBUTTONDOWN:
             pos = event.pos
@@ -93,7 +91,7 @@ while True:
                 tool = "circle"
             elif clear_btn.collidepoint(pos):
                 canvas.fill(WHITE)
-            elif pos[1] > TOOLBAR_H:
+            elif pos[1] > 80:
                 drawing = True
                 start_pos = pos
                 current_pos = pos

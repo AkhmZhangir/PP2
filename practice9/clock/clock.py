@@ -1,18 +1,12 @@
 import pygame
 import datetime
-import os
 
 pygame.init()
 
-WIDTH, HEIGHT = 900, 900
+
 screen = pygame.display.set_mode((800, 800))
 pygame.display.set_caption("Mickey Clock")
 clock = pygame.time.Clock()
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-hand_path = os.path.join(BASE_DIR, "hand.png")
-bg_path = os.path.join(BASE_DIR, "mouce.png")
 
 mickey_hand_original = None
 background = None
@@ -31,8 +25,8 @@ def load_images(screen_width, screen_height):
     global mickey_hand_original, background
     global minute_hand_img, second_hand_img
 
-    mickey_hand_original = pygame.image.load(hand_path).convert_alpha()
-    background = pygame.image.load(bg_path).convert()
+    mickey_hand_original = pygame.image.load("hand.png").convert_alpha()
+    background = pygame.image.load("mouce.png").convert()
     background = pygame.transform.scale(background, (screen_width, screen_height))
 
     minute_hand_img = create_hand(mickey_hand_original, 150)
@@ -75,7 +69,7 @@ while True:
             pygame.quit()
             exit()
 
-    draw_clock(screen, WIDTH // 2, HEIGHT // 2)
+    draw_clock(screen, 800 // 2, 800 // 2)
 
     pygame.display.flip()
     clock.tick(60)

@@ -106,7 +106,7 @@
       <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.clock">
+  <component name="RunManager" selected="Python.paint">
     <configuration name="clock" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="PythonProject" />
       <option name="ENV_FILES" value="" />
@@ -219,11 +219,11 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.clock" />
+        <item itemvalue="Python.paint" />
         <item itemvalue="Python.game" />
         <item itemvalue="Python.clock_experiment" />
         <item itemvalue="Python.music_player_pygame" />
-        <item itemvalue="Python.paint" />
+        <item itemvalue="Python.clock" />
       </list>
     </recent_temporary>
   </component>
@@ -466,7 +466,23 @@
       <option name="project" value="LOCAL" />
       <updated>1776141957268</updated>
     </task>
-    <option name="localTasksCounter" value="29" />
+    <task id="LOCAL-00029" summary="3">
+      <option name="closed" value="true" />
+      <created>1776150893939</created>
+      <option name="number" value="00029" />
+      <option name="presentableId" value="LOCAL-00029" />
+      <option name="project" value="LOCAL" />
+      <updated>1776150893939</updated>
+    </task>
+    <task id="LOCAL-00030" summary="3">
+      <option name="closed" value="true" />
+      <created>1776151580741</created>
+      <option name="number" value="00030" />
+      <option name="presentableId" value="LOCAL-00030" />
+      <option name="project" value="LOCAL" />
+      <updated>1776151580741</updated>
+    </task>
+    <option name="localTasksCounter" value="31" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">

@@ -1,4 +1,3 @@
-import sys
 import pygame
 from pathlib import Path
 
@@ -188,4 +187,4 @@ while running:
     clock.tick(30)
 
 pygame.quit()
-sys.exit()
+exit()
