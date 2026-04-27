@@ -1,14 +1,13 @@
+# connect.py — единственная точка получения соединения с PostgreSQL
 import psycopg2
-from config import load_config
-def connect(config):
-    """ Connect to the PostgreSQL database server """
-    try:
-        # connecting to the PostgreSQL server
-        with psycopg2.connect(**config) as conn:
-            print('Connected to the PostgreSQL server.')
-            return conn
-    except (psycopg2.DatabaseError, Exception) as error:
-        print(error)
-if __name__ == '__main__':
-    config = load_config()
-    connect(config)
+from config import config
+
+
+def get_connection():
+    """
+    Открывает и возвращает соединение psycopg2.
+    Все остальные модули импортируют только эту функцию,
+    чтобы параметры подключения хранились в одном месте.
+    """
+    params = config()                   # читаем database.ini
+    return psycopg2.connect(**params)   # возвращаем объект соединения

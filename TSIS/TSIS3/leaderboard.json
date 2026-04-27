@@ -1,5 +1,26 @@
 [
     {
+        "name": "5",
+        "score": 5140,
+        "distance": 10001,
+        "coins": 0,
+        "date": "2026-04-21 09:18"
+    },
+    {
+        "name": "123",
+        "score": 5101,
+        "distance": 10003,
+        "coins": 0,
+        "date": "2026-04-21 08:43"
+    },
+    {
+        "name": "123",
+        "score": 2616,
+        "distance": 5232,
+        "coins": 0,
+        "date": "2026-04-21 08:42"
+    },
+    {
         "name": "korish lox",
         "score": 2600,
         "distance": 5000,
@@ -7,11 +28,39 @@
         "date": "2026-04-20 20:06"
     },
     {
+        "name": "123",
+        "score": 2544,
+        "distance": 5009,
+        "coins": 0,
+        "date": "2026-04-21 08:41"
+    },
+    {
+        "name": "123",
+        "score": 1107,
+        "distance": 2214,
+        "coins": 0,
+        "date": "2026-04-21 08:41"
+    },
+    {
+        "name": "123",
+        "score": 1023,
+        "distance": 2046,
+        "coins": 0,
+        "date": "2026-04-21 08:41"
+    },
+    {
         "name": "ihu",
         "score": 821,
         "distance": 1563,
         "coins": 0,
         "date": "2026-04-20 20:05"
+    },
+    {
+        "name": "123",
+        "score": 474,
+        "distance": 949,
+        "coins": 0,
+        "date": "2026-04-21 08:41"
     },
     {
         "name": "korish lox",

@@ -1,0 +1,2518 @@
+Index: practice11/snake/settings.json
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>{\r\n    \"snake_color\": [\r\n        80,\r\n        200,\r\n        80\r\n    ],\r\n    \"grid_overlay\": true,\r\n    \"sound\": false\r\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/practice11/snake/settings.json b/practice11/snake/settings.json
+--- a/practice11/snake/settings.json	(revision 251582ab168146b53d70e2bc2fa36726e1d0e01a)
++++ b/practice11/snake/settings.json	(date 1776758697819)
+@@ -1,8 +1,8 @@
+ {
+     "snake_color": [
+-        80,
+         200,
+-        80
++        100,
++        255
+     ],
+     "grid_overlay": true,
+     "sound": false
+Index: practice10/snake/settings.json
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/practice10/snake/settings.json b/practice10/snake/settings.json
+new file mode 100644
+--- /dev/null	(date 1776698876297)
++++ b/practice10/snake/settings.json	(date 1776698876297)
+@@ -0,0 +1,9 @@
++{
++    "snake_color": [
++        80,
++        200,
++        80
++    ],
++    "grid_overlay": true,
++    "sound": false
++}
+\ No newline at end of file
+Index: practice10/snake/game.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/practice10/snake/game.py b/practice10/snake/game.py
+new file mode 100644
+--- /dev/null	(date 1776698376848)
++++ b/practice10/snake/game.py	(date 1776698376848)
+@@ -0,0 +1,204 @@
++import pygame, random
++from config import *
++
++DIRECTIONS = {"UP":(0,-1),"DOWN":(0,1),"LEFT":(-1,0),"RIGHT":(1,0)}
++OPPOSITE   = {"UP":"DOWN","DOWN":"UP","LEFT":"RIGHT","RIGHT":"LEFT"}
++
++FOOD_TYPES = [
++    ("normal", FOOD_NORM,   1, 0),
++    ("bonus",  FOOD_BONUS,  3, 8),
++    ("rare",   FOOD_RARE,   5, 5),
++    ("poison", FOOD_POISON, 0, 0),
++]
++
++POWERUP_TYPES   = ["speed","slow","shield"]
++PU_COLORS       = {"speed":PU_SPEED,"slow":PU_SLOW,"shield":PU_SHIELD}
++PU_DURATION_MS  = {"speed":5000,"slow":5000,"shield":0}
++PU_FIELD_TTL    = 8000
++
++class SnakeGame:
++    def __init__(self, settings, username, personal_best):
++        self.settings      = settings
++        self.username      = username
++        self.personal_best = personal_best
++        self.snake_color   = tuple(settings["snake_color"])
++        self.grid          = settings["grid_overlay"]
++
++        cx, cy = COLS//2, ROWS//2
++        self.body      = [(cx,cy),(cx-1,cy),(cx-2,cy)]
++        self.direction = "RIGHT"
++        self.next_dir  = "RIGHT"
++
++        self.score = 0; self.level = 1; self.food_eaten = 0
++        self.food_per_level = 5
++        self.game_over = False; self.game_over_reason = ""
++        self.fps = FPS_DEFAULT
++        self.speed_boost_end = 0; self.slow_end = 0
++        self.shield_active = False; self.active_powerup_label = None
++        self.foods=[]; self.powerup=None; self.pu_spawn_time=0
++        self.obstacles=set()
++        self._place_food()
++        self._maybe_place_powerup(force=True)
++
++    def _free_cells(self, extra=None):
++        occ = set(self.body)|self.obstacles
++        if extra: occ|=set(extra)
++        return [(x,y) for x in range(COLS) for y in range(ROWS) if (x,y) not in occ]
++
++    def _place_food(self):
++        if len(self.foods)>=2: return
++        free = self._free_cells([(f["x"],f["y"]) for f in self.foods])
++        if not free: return
++        ftype = random.choices(FOOD_TYPES,[4,2,1,1],k=1)[0]
++        name,color,pts,ttl = ftype
++        pos = random.choice(free)
++        self.foods.append({
++            "x":pos[0],"y":pos[1],"type":name,"color":color,
++            "pts":pts,"expires":pygame.time.get_ticks()+ttl*1000 if ttl>0 else 0,
++            "ttl":ttl
++        })
++
++    def _maybe_place_powerup(self, force=False):
++        if self.powerup: return
++        if not force and random.random()>0.25: return
++        fc = [(f["x"],f["y"]) for f in self.foods]
++        free = self._free_cells(fc)
++        if not free: return
++        ptype = random.choice(POWERUP_TYPES)
++        pos = random.choice(free)
++        self.powerup = {"x":pos[0],"y":pos[1],"type":ptype}
++        self.pu_spawn_time = pygame.time.get_ticks()
++
++    def _place_obstacles(self):
++        if self.level<3: return
++        count = 2+(self.level-3)*2
++        head = self.body[0]
++        safety = {(head[0]+dx,head[1]+dy) for dx in range(-3,4) for dy in range(-3,4)}
++        cands = [(x,y) for x in range(COLS) for y in range(ROWS)
++                 if (x,y) not in set(self.body) and (x,y) not in self.obstacles
++                 and (x,y) not in safety
++                 and not any(f["x"]==x and f["y"]==y for f in self.foods)]
++        random.shuffle(cands)
++        for pos in cands[:count]: self.obstacles.add(pos)
++
++    def _advance_level(self):
++        self.level+=1; self.food_eaten=0
++        self.fps = min(FPS_DEFAULT+(self.level-1)*2,22)
++        self._place_obstacles()
++
++    @property
++    def current_fps(self):
++        now=pygame.time.get_ticks()
++        if now<self.speed_boost_end: return min(self.fps+6,28)
++        if now<self.slow_end:        return max(self.fps-4,3)
++        return self.fps
++
++    def change_direction(self, d):
++        if d!=OPPOSITE[self.direction]: self.next_dir=d
++
++    def update(self):
++        if self.game_over: return
++        now=pygame.time.get_ticks()
++        self.foods=[f for f in self.foods if f["expires"]==0 or now<f["expires"]]
++        if not self.foods: self._place_food()
++        if self.powerup and (now-self.pu_spawn_time)>PU_FIELD_TTL: self.powerup=None
++        if self.active_powerup_label=="speed" and now>=self.speed_boost_end:
++            self.active_powerup_label=None
++        if self.active_powerup_label=="slow" and now>=self.slow_end:
++            self.active_powerup_label=None
++
++        self.direction=self.next_dir
++        dx,dy=DIRECTIONS[self.direction]
++        hx,hy=self.body[0]
++        nh=(hx+dx,hy+dy)
++        wall = not(0<=nh[0]<COLS and 0<=nh[1]<ROWS)
++        self_= nh in self.body[:-1]
++        obs_  = nh in self.obstacles
++
++        if wall or self_ or obs_:
++            if self.shield_active:
++                self.shield_active=False; self.active_powerup_label=None; return
++            self.game_over=True
++            self.game_over_reason=("Hit the wall!" if wall else
++                                   "Hit an obstacle!" if obs_ else "Bit yourself!")
++            return
++
++        self.body.insert(0,nh)
++        ate=False
++        for food in self.foods[:]:
++            if nh==(food["x"],food["y"]):
++                if food["type"]=="poison":
++                    for _ in range(3):
++                        if len(self.body)>1: self.body.pop()
++                    if len(self.body)<=1:
++                        self.game_over=True; self.game_over_reason="Poisoned!"; return
++                    self.score=max(0,self.score-2)
++                else:
++                    self.score+=food["pts"]; self.food_eaten+=1
++                    if self.food_eaten>=self.food_per_level: self._advance_level()
++                self.foods.remove(food)
++                self._place_food(); self._maybe_place_powerup(); ate=True; break
++        if not ate: self.body.pop()
++
++        if self.powerup and nh==(self.powerup["x"],self.powerup["y"]):
++            pt=self.powerup["type"]
++            if pt=="speed":   self.speed_boost_end=now+5000; self.active_powerup_label="speed"
++            elif pt=="slow":  self.slow_end=now+5000;        self.active_powerup_label="slow"
++            elif pt=="shield":self.shield_active=True;       self.active_powerup_label="shield"
++            self.powerup=None
++
++    def draw(self, surface):
++        pygame.draw.rect(surface,BG,(0,80,WIDTH,HEIGHT-80))
++        if self.grid:
++            for x in range(COLS):
++                for y in range(ROWS):
++                    pygame.draw.rect(surface,GRID_COLOR,(x*CELL,80+y*CELL,CELL,CELL),1)
++        for ox,oy in self.obstacles:
++            pygame.draw.rect(surface,OBSTACLE,(ox*CELL+2,80+oy*CELL+2,CELL-4,CELL-4),border_radius=4)
++        for food in self.foods:
++            r=pygame.Rect(food["x"]*CELL+4,80+food["y"]*CELL+4,CELL-8,CELL-8)
++            pygame.draw.ellipse(surface,food["color"],r)
++            if food["expires"]>0:
++                now=pygame.time.get_ticks()
++                ratio=max(0,(food["expires"]-now)/(food["ttl"]*1000))
++                bw=int((CELL-8)*ratio)
++                pygame.draw.rect(surface,WHITE,(food["x"]*CELL+4,80+food["y"]*CELL+CELL-8,bw,4))
++        if self.powerup:
++            px,py=self.powerup["x"],self.powerup["y"]
++            r=pygame.Rect(px*CELL+3,80+py*CELL+3,CELL-6,CELL-6)
++            pygame.draw.rect(surface,PU_COLORS[self.powerup["type"]],r,border_radius=6)
++            pygame.draw.rect(surface,WHITE,r,2,border_radius=6)
++        for i,(sx,sy) in enumerate(self.body):
++            col=PU_SHIELD if self.shield_active else self.snake_color
++            r=pygame.Rect(sx*CELL+1,80+sy*CELL+1,CELL-2,CELL-2)
++            pygame.draw.rect(surface,col,r,border_radius=5)
++            if i==0:
++                pygame.draw.circle(surface,BLACK,(sx*CELL+7,80+sy*CELL+7),3)
++                pygame.draw.circle(surface,BLACK,(sx*CELL+CELL-7,80+sy*CELL+7),3)
++        pygame.draw.rect(surface,WALL,(0,80,WIDTH,HEIGHT-80),4)
++
++    def draw_hud(self, surface, font_med, font_small):
++        pygame.draw.rect(surface,HUD_BG,(0,0,WIDTH,80))
++        pygame.draw.line(surface,WALL,(0,80),(WIDTH,80),2)
++        _t(font_med, f"Score: {self.score}", WHITE, surface, 14,8)
++        _t(font_small,f"Level: {self.level}", LIGHT_GRAY, surface, 14,42)
++        _t(font_small,f"Best: {self.personal_best}", LIGHT_GRAY, surface, 14,60)
++        now=pygame.time.get_ticks()
++        if self.active_powerup_label=="speed":
++            rem=max(0,(self.speed_boost_end-now)//1000+1)
++            _t(font_small,f"SPEED BOOST ({rem}s)",PU_SPEED,surface,WIDTH//2,10,center=True)
++        elif self.active_powerup_label=="slow":
++            rem=max(0,(self.slow_end-now)//1000+1)
++            _t(font_small,f"SLOW MOTION ({rem}s)",PU_SLOW,surface,WIDTH//2,10,center=True)
++        elif self.shield_active:
++            _t(font_small,"SHIELD ACTIVE",PU_SHIELD,surface,WIDTH//2,10,center=True)
++        _t(font_small,self.username, LIGHT_GRAY, surface, WIDTH-14,8,right=True)
++        _t(font_small,f"Length: {len(self.body)}", LIGHT_GRAY, surface, WIDTH-14,30,right=True)
++
++def _t(font, text, color, surface, x, y, center=False, right=False):
++    img=font.render(str(text),True,color)
++    r=img.get_rect()
++    if center:   r.midtop=(x,y)
++    elif right:  r.topright=(x,y)
++    else:        r.topleft=(x,y)
++    surface.blit(img,r)
+\ No newline at end of file
+Index: TSIS/TSIS3/settings.json
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>{\r\n    \"sound\": true,\r\n    \"car_color\": \"red\",\r\n    \"difficulty\": \"hard\"\r\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/TSIS/TSIS3/settings.json b/TSIS/TSIS3/settings.json
+--- a/TSIS/TSIS3/settings.json	(revision 251582ab168146b53d70e2bc2fa36726e1d0e01a)
++++ b/TSIS/TSIS3/settings.json	(date 1776742940685)
+@@ -1,5 +1,5 @@
+ {
+     "sound": true,
+     "car_color": "red",
+-    "difficulty": "hard"
++    "difficulty": "easy"
+ }
+\ No newline at end of file
+Index: TSIS/TSIS1/phonebook.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import csv\r\nimport psycopg2\r\nfrom config import config\r\n\r\n\r\ndef get_connection():\r\n    params = config()\r\n    return psycopg2.connect(**params)\r\n\r\n\r\ndef import_from_csv(filename='contacts.csv'):\r\n    with get_connection() as conn, conn.cursor() as cur, \\\r\n            open(filename, encoding='utf-8') as f:\r\n        reader = csv.DictReader(f)\r\n        for row in reader:\r\n            cur.execute(\r\n                \"\"\"\r\n                INSERT INTO contacts (first_name, last_name, phone, email)\r\n                VALUES (%s, %s, %s, %s)\r\n                ON CONFLICT (phone) DO UPDATE\r\n                SET first_name = EXCLUDED.first_name,\r\n                    last_name  = EXCLUDED.last_name,\r\n                    email      = EXCLUDED.email\r\n                \"\"\",\r\n                (row.get('first_name'),\r\n                 row.get('last_name'),\r\n                 row.get('phone'),\r\n                 row.get('email'))\r\n            )\r\n    print(\"CSV импортирован\")\r\n\r\n\r\ndef insert_from_console():\r\n    first_name = input(\"Имя: \").strip()\r\n    last_name = input(\"Фамилия (можно пусто): \").strip() or None\r\n    phone = input(\"Телефон: \").strip()\r\n    email = input(\"Email (можно пусто): \").strip() or None\r\n\r\n    with get_connection() as conn, conn.cursor() as cur:\r\n        cur.execute(\r\n            \"\"\"\r\n            INSERT INTO contacts (first_name, last_name, phone, email)\r\n            VALUES (%s, %s, %s, %s)\r\n            \"\"\",\r\n            (first_name, last_name, phone, email)\r\n        )\r\n    print(\"Контакт добавлен\")\r\n\r\n\r\ndef update_contact():\r\n    phone_or_name = input(\"По какому полю искать (phone/name): \").strip().lower()\r\n    value = input(\"Значение для поиска: \").strip()\r\n\r\n    field = 'phone' if phone_or_name == 'phone' else 'first_name'\r\n\r\n    print(\"Что обновляем?\")\r\n    print(\"1 — first_name\")\r\n    print(\"2 — phone\")\r\n    choice = input(\"Выбор: \").strip()\r\n\r\n    if choice == '1':\r\n        new_value = input(\"Новое имя: \").strip()\r\n        set_clause = \"first_name = %s\"\r\n    elif choice == '2':\r\n        new_value = input(\"Новый телефон: \").strip()\r\n        set_clause = \"phone = %s\"\r\n    else:\r\n        print(\"Неверный выбор\")\r\n        return\r\n\r\n    with get_connection() as conn, conn.cursor() as cur:\r\n        query = f\"UPDATE contacts SET {set_clause} WHERE {field} = %s\"\r\n        cur.execute(query, (new_value, value))\r\n        print(\"Обновлено строк:\", cur.rowcount)\r\n\r\n\r\ndef query_contacts():\r\n    print(\"Фильтры:\")\r\n    print(\"1 — по имени (точное совпадение)\")\r\n    print(\"2 — по префиксу телефона\")\r\n    choice = input(\"Выбор: \").strip()\r\n\r\n    with get_connection() as conn, conn.cursor() as cur:\r\n        if choice == '1':\r\n            name = input(\"Имя: \").strip()\r\n            cur.execute(\r\n                \"SELECT * FROM contacts WHERE first_name = %s\",\r\n                (name,)\r\n            )\r\n        elif choice == '2':\r\n            prefix = input(\"Префикс телефона: \").strip()\r\n            cur.execute(\r\n                \"SELECT * FROM contacts WHERE phone LIKE %s\",\r\n                (prefix + '%',)\r\n            )\r\n        else:\r\n            print(\"Неверный выбор\")\r\n            return\r\n\r\n        rows = cur.fetchall()\r\n        if not rows:\r\n            print(\"Ничего не найдено\")\r\n        else:\r\n            for r in rows:\r\n                print(r)\r\n\r\n\r\ndef delete_contact():\r\n    print(\"Удалить по:\")\r\n    print(\"1 — имени\")\r\n    print(\"2 — телефону\")\r\n    choice = input(\"Выбор: \").strip()\r\n\r\n    with get_connection() as conn, conn.cursor() as cur:\r\n        if choice == '1':\r\n            name = input(\"Имя: \").strip()\r\n            cur.execute(\r\n                \"DELETE FROM contacts WHERE first_name = %s\",\r\n                (name,)\r\n            )\r\n        elif choice == '2':\r\n            phone = input(\"Телефон: \").strip()\r\n            cur.execute(\r\n                \"DELETE FROM contacts WHERE phone = %s\",\r\n                (phone,)\r\n            )\r\n        else:\r\n            print(\"Неверный выбор\")\r\n            return\r\n\r\n        print(\"Удалено строк:\", cur.rowcount)\r\n\r\n\r\ndef search_via_db_function():\r\n    pattern = input(\"Введите шаблон (часть имени/фамилии/телефона): \").strip()\r\n    with get_connection() as conn, conn.cursor() as cur:\r\n        cur.execute(\"SELECT * FROM get_contacts_by_pattern(%s)\", (pattern,))\r\n        rows = cur.fetchall()\r\n        if not rows:\r\n            print(\"Ничего не найдено\")\r\n        else:\r\n            for r in rows:\r\n                print(r)\r\ndef paginated_via_db_function():\r\n    limit = int(input(\"Сколько строк на странице (LIMIT): \"))\r\n    offset = int(input(\"OFFSET (сколько пропустить): \"))\r\n    with get_connection() as conn, conn.cursor() as cur:\r\n        cur.execute(\"SELECT * FROM get_contacts_page(%s, %s)\", (limit, offset))\r\n        rows = cur.fetchall()\r\n        if not rows:\r\n            print(\"Больше строк нет\")\r\n        else:\r\n            for r in rows:\r\n                print(r)\r\ndef upsert_via_procedure():\r\n    first_name = input(\"Имя: \").strip()\r\n    last_name  = input(\"Фамилия (можно пусто): \").strip() or None\r\n    phone      = input(\"Телефон: \").strip()\r\n    email      = input(\"Email (можно пусто): \").strip() or None\r\n\r\n    with get_connection() as conn, conn.cursor() as cur:\r\n        cur.execute(\"CALL upsert_contact(%s, %s, %s, %s)\",\r\n                    (first_name, last_name, phone, email))\r\n    print(\"Upsert через БД выполнен\")\r\ndef delete_via_procedure():\r\n    mode = input(\"Удалить по (name/phone): \").strip().lower()\r\n    name = phone = None\r\n    if mode == 'name':\r\n        name = input(\"Имя: \").strip()\r\n    elif mode == 'phone':\r\n        phone = input(\"Телефон: \").strip()\r\n    else:\r\n        print(\"Неверный режим\")\r\n        return\r\n\r\n    with get_connection() as conn, conn.cursor() as cur:\r\n        cur.execute(\r\n            \"CALL delete_contact_by_name_or_phone(%s, %s)\",\r\n            (name, phone)\r\n        )\r\n    print(\"Удаление через БД выполнено\")\r\ndef bulk_via_procedure():\r\n    n = int(input(\"Сколько контактов добавить: \"))\r\n    names = []\r\n    phones = []\r\n    for _ in range(n):\r\n        names.append(input(\"Имя: \").strip())\r\n        phones.append(input(\"Телефон: \").strip())\r\n\r\n    with get_connection() as conn, conn.cursor() as cur:\r\n        cur.execute(\"CALL bulk_upsert_contacts(%s, %s)\", (names, phones))\r\n    print(\"Массовый insert через БД выполнен\")\r\n\r\n\r\ndef main():\r\n    while True:\r\n        print(\"\\nPHONEBOOK MENU\")\r\n        print(\"1 — импорт из CSV\")\r\n        print(\"2 — добавить контакт\")\r\n        print(\"3 — обновить контакт\")\r\n        print(\"4 — найти контакты\")\r\n        print(\"5 — удалить контакт\")\r\n        print(\"6 — поиск (функция в БД)\")\r\n        print(\"7 — показать страницу контактов (функция в БД)\")\r\n        print(\"8 — upsert (процедура в БД)\")\r\n        print(\"9 — удалить (процедура в БД)\")\r\n        print(\"10 — массовое добавление (процедура в БД)\")\r\n        print(\"0 — выход\")\r\n\r\n        choice = input(\"Выбор: \").strip()\r\n        if choice == '1':\r\n            import_from_csv()\r\n        elif choice == '2':\r\n            insert_from_console()\r\n        elif choice == '3':\r\n            update_contact()\r\n        elif choice == '4':\r\n            query_contacts()\r\n        elif choice == '5':\r\n            delete_contact()\r\n        elif choice == '6':\r\n            search_via_db_function()\r\n        elif choice == '7':\r\n            paginated_via_db_function()\r\n        elif choice == '8':\r\n            upsert_via_procedure()\r\n        elif choice == '9':\r\n            delete_via_procedure()\r\n        elif choice == '10':\r\n            bulk_via_procedure()\r\n        elif choice == '0':\r\n            break\r\n        else:\r\n            print(\"Неверный выбор\")\r\n\r\n\r\nif __name__ == \"__main__\":\r\n    main()
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/TSIS/TSIS1/phonebook.py b/TSIS/TSIS1/phonebook.py
+--- a/TSIS/TSIS1/phonebook.py	(revision 251582ab168146b53d70e2bc2fa36726e1d0e01a)
++++ b/TSIS/TSIS1/phonebook.py	(date 1776756267766)
+@@ -192,47 +192,42 @@
+     print("Массовый insert через БД выполнен")
+ 
+ 
+-def main():
+-    while True:
+-        print("\nPHONEBOOK MENU")
+-        print("1 — импорт из CSV")
+-        print("2 — добавить контакт")
+-        print("3 — обновить контакт")
+-        print("4 — найти контакты")
+-        print("5 — удалить контакт")
+-        print("6 — поиск (функция в БД)")
+-        print("7 — показать страницу контактов (функция в БД)")
+-        print("8 — upsert (процедура в БД)")
+-        print("9 — удалить (процедура в БД)")
+-        print("10 — массовое добавление (процедура в БД)")
+-        print("0 — выход")
++while True:
++    print("\nPHONEBOOK MENU")
++    print("1 — импорт из CSV")
++    print("2 — добавить контакт")
++    print("3 — обновить контакт")
++    print("4 — найти контакты")
++    print("5 — удалить контакт")
++    print("6 — поиск (функция в БД)")
++    print("7 — показать страницу контактов (функция в БД)")
++    print("8 — upsert (процедура в БД)")
++    print("9 — удалить (процедура в БД)")
++    print("10 — массовое добавление (процедура в БД)")
++    print("0 — выход")
+ 
+-        choice = input("Выбор: ").strip()
+-        if choice == '1':
+-            import_from_csv()
+-        elif choice == '2':
+-            insert_from_console()
+-        elif choice == '3':
+-            update_contact()
+-        elif choice == '4':
+-            query_contacts()
+-        elif choice == '5':
+-            delete_contact()
+-        elif choice == '6':
+-            search_via_db_function()
+-        elif choice == '7':
+-            paginated_via_db_function()
+-        elif choice == '8':
+-            upsert_via_procedure()
+-        elif choice == '9':
+-            delete_via_procedure()
+-        elif choice == '10':
+-            bulk_via_procedure()
+-        elif choice == '0':
+-            break
+-        else:
+-            print("Неверный выбор")
+-
+-
+-if __name__ == "__main__":
+-    main()
+\ No newline at end of file
++    choice = input("Выбор: ").strip()
++    if choice == '1':
++        import_from_csv()
++    elif choice == '2':
++        insert_from_console()
++    elif choice == '3':
++        update_contact()
++    elif choice == '4':
++        query_contacts()
++    elif choice == '5':
++        delete_contact()
++    elif choice == '6':
++        search_via_db_function()
++    elif choice == '7':
++        paginated_via_db_function()
++    elif choice == '8':
++        upsert_via_procedure()
++    elif choice == '9':
++        delete_via_procedure()
++    elif choice == '10':
++        bulk_via_procedure()
++    elif choice == '0':
++        break
++    else:
++        print("Неверный выбор")
+Index: TSIS/TSIS3/leaderboard.json
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>[\r\n    {\r\n        \"name\": \"korish lox\",\r\n        \"score\": 2600,\r\n        \"distance\": 5000,\r\n        \"coins\": 0,\r\n        \"date\": \"2026-04-20 20:06\"\r\n    },\r\n    {\r\n        \"name\": \"ihu\",\r\n        \"score\": 821,\r\n        \"distance\": 1563,\r\n        \"coins\": 0,\r\n        \"date\": \"2026-04-20 20:05\"\r\n    },\r\n    {\r\n        \"name\": \"korish lox\",\r\n        \"score\": 390,\r\n        \"distance\": 780,\r\n        \"coins\": 0,\r\n        \"date\": \"2026-04-20 20:06\"\r\n    }\r\n]
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/TSIS/TSIS3/leaderboard.json b/TSIS/TSIS3/leaderboard.json
+--- a/TSIS/TSIS3/leaderboard.json	(revision 251582ab168146b53d70e2bc2fa36726e1d0e01a)
++++ b/TSIS/TSIS3/leaderboard.json	(date 1776745086018)
+@@ -1,5 +1,26 @@
+ [
+     {
++        "name": "5",
++        "score": 5140,
++        "distance": 10001,
++        "coins": 0,
++        "date": "2026-04-21 09:18"
++    },
++    {
++        "name": "123",
++        "score": 5101,
++        "distance": 10003,
++        "coins": 0,
++        "date": "2026-04-21 08:43"
++    },
++    {
++        "name": "123",
++        "score": 2616,
++        "distance": 5232,
++        "coins": 0,
++        "date": "2026-04-21 08:42"
++    },
++    {
+         "name": "korish lox",
+         "score": 2600,
+         "distance": 5000,
+@@ -7,6 +28,27 @@
+         "date": "2026-04-20 20:06"
+     },
+     {
++        "name": "123",
++        "score": 2544,
++        "distance": 5009,
++        "coins": 0,
++        "date": "2026-04-21 08:41"
++    },
++    {
++        "name": "123",
++        "score": 1107,
++        "distance": 2214,
++        "coins": 0,
++        "date": "2026-04-21 08:41"
++    },
++    {
++        "name": "123",
++        "score": 1023,
++        "distance": 2046,
++        "coins": 0,
++        "date": "2026-04-21 08:41"
++    },
++    {
+         "name": "ihu",
+         "score": 821,
+         "distance": 1563,
+@@ -14,6 +56,13 @@
+         "date": "2026-04-20 20:05"
+     },
+     {
++        "name": "123",
++        "score": 474,
++        "distance": 949,
++        "coins": 0,
++        "date": "2026-04-21 08:41"
++    },
++    {
+         "name": "korish lox",
+         "score": 390,
+         "distance": 780,
+Index: TSIS/TSIS4/settings.json
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>{\r\n    \"snake_color\": [\r\n        80,\r\n        200,\r\n        80\r\n    ],\r\n    \"grid_overlay\": true,\r\n    \"sound\": false\r\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/TSIS/TSIS4/settings.json b/TSIS/TSIS4/settings.json
+--- a/TSIS/TSIS4/settings.json	(revision 251582ab168146b53d70e2bc2fa36726e1d0e01a)
++++ b/TSIS/TSIS4/settings.json	(date 1776763328681)
+@@ -1,8 +1,8 @@
+ {
+     "snake_color": [
+         80,
+-        200,
+-        80
++        140,
++        255
+     ],
+     "grid_overlay": true,
+     "sound": false
+Index: .idea/shelf/Uncommitted_changes_before_Update_at_14_04_2026_8_03/shelved.patch
+===================================================================
+diff --git a/.idea/shelf/Uncommitted_changes_before_Update_at_14_04_2026_8_03/shelved.patch b/.idea/shelf/Uncommitted_changes_before_Update_at_14_04_2026_8_03/shelved.patch
+deleted file mode 100644
+--- a/.idea/shelf/Uncommitted_changes_before_Update_at_14_04_2026_8_03/shelved.patch	(revision 251582ab168146b53d70e2bc2fa36726e1d0e01a)
++++ /dev/null	(revision 251582ab168146b53d70e2bc2fa36726e1d0e01a)
+@@ -1,228 +0,0 @@
+-Index: .idea/workspace.xml
+-IDEA additional info:
+-Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+-<+><?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n<project version=\"4\">\r\n  <component name=\"AutoImportSettings\">\r\n    <option name=\"autoReloadType\" value=\"SELECTIVE\" />\r\n  </component>\r\n  <component name=\"ChangeListManager\">\r\n    <list default=\"true\" id=\"72a855c3-dedf-421c-9470-6d5d49bf2e6b\" name=\"Changes\" comment=\"\">\r\n      <change afterPath=\"$PROJECT_DIR$/pracrice5/raw.txt\" afterDir=\"false\" />\r\n      <change afterPath=\"$PROJECT_DIR$/pracrice5/regX.py\" afterDir=\"false\" />\r\n      <change afterPath=\"$PROJECT_DIR$/practice4/json.py\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/.idea/PythonProject.iml\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/.idea/PythonProject.iml\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/.idea/misc.xml\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/.idea/misc.xml\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/.idea/workspace.xml\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/.idea/workspace.xml\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/test/test.py\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/test/test.py\" afterDir=\"false\" />\r\n    </list>\r\n    <option name=\"SHOW_DIALOG\" value=\"false\" />\r\n    <option name=\"HIGHLIGHT_CONFLICTS\" value=\"true\" />\r\n    <option name=\"HIGHLIGHT_NON_ACTIVE_CHANGELIST\" value=\"false\" />\r\n    <option name=\"LAST_RESOLUTION\" value=\"IGNORE\" />\r\n  </component>\r\n  <component name=\"FileTemplateManagerImpl\">\r\n    <option name=\"RECENT_TEMPLATES\">\r\n      <list>\r\n        <option value=\"Python Script\" />\r\n      </list>\r\n    </option>\r\n  </component>\r\n  <component name=\"Git.Settings\">\r\n    <option name=\"RECENT_GIT_ROOT_PATH\" value=\"$PROJECT_DIR$\" />\r\n  </component>\r\n  <component name=\"GitHubPullRequestSearchHistory\">{\r\n  &quot;lastFilter&quot;: {\r\n    &quot;state&quot;: &quot;OPEN&quot;,\r\n    &quot;assignee&quot;: &quot;AkhmZhangir&quot;\r\n  }\r\n}</component>\r\n  <component name=\"GithubPullRequestsUISettings\">{\r\n  &quot;selectedUrlAndAccountId&quot;: {\r\n    &quot;url&quot;: &quot;https://github.com/AkhmZhangir/PP2.git&quot;,\r\n    &quot;accountId&quot;: &quot;38c72f29-3ba6-4a4e-b803-7cf464a17c08&quot;\r\n  }\r\n}</component>\r\n  <component name=\"McpProjectServerCommands\">\r\n    <commands />\r\n    <urls />\r\n  </component>\r\n  <component name=\"ProjectColorInfo\">{\r\n  &quot;associatedIndex&quot;: 0\r\n}</component>\r\n  <component name=\"ProjectId\" id=\"38Vz41FG6NPE1N1kOCRWki9A8eA\" />\r\n  <component name=\"ProjectViewState\">\r\n    <option name=\"hideEmptyMiddlePackages\" value=\"true\" />\r\n    <option name=\"showLibraryContents\" value=\"true\" />\r\n  </component>\r\n  <component name=\"PropertiesComponent\"><![CDATA[{\r\n  \"keyToString\": {\r\n    \"ModuleVcsDetector.initialDetectionPerformed\": \"true\",\r\n    \"Python.Get_started.executor\": \"Run\",\r\n    \"Python.Syntx.executor\": \"Run\",\r\n    \"Python.args_kwargs.executor\": \"Run\",\r\n    \"Python.config (1).executor\": \"Run\",\r\n    \"Python.config.executor\": \"Run\",\r\n    \"Python.connect (1).executor\": \"Run\",\r\n    \"Python.connect.executor\": \"Run\",\r\n    \"Python.create_tables.executor\": \"Run\",\r\n    \"Python.data_types.executor\": \"Run\",\r\n    \"Python.functions_arguments_returnvalues.executor\": \"Run\",\r\n    \"Python.phonebook (1).executor\": \"Run\",\r\n    \"Python.phonebook.executor\": \"Run\",\r\n    \"Python.test.executor\": \"Run\",\r\n    \"RunOnceActivity.MCP Project settings loaded\": \"true\",\r\n    \"RunOnceActivity.ShowReadmeOnStart\": \"true\",\r\n    \"RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252\": \"true\",\r\n    \"RunOnceActivity.git.unshallow\": \"true\",\r\n    \"com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1\": \"true\",\r\n    \"git-widget-placeholder\": \"master\",\r\n    \"junie.onboarding.icon.badge.shown\": \"true\",\r\n    \"last_opened_file_path\": \"C:/Users/misti/PycharmProjects/PP2/pracrice5\",\r\n    \"settings.editor.selected.configurable\": \"com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable\",\r\n    \"to.speed.mode.migration.done\": \"true\"\r\n  },\r\n  \"keyToStringList\": {\r\n    \"GitStage.ChangesTree.GroupingKeys\": [\r\n      \"directory\",\r\n      \"module\",\r\n      \"repository\"\r\n    ]\r\n  }\r\n}]]></component>\r\n  <component name=\"RecentsManager\">\r\n    <key name=\"CopyFile.RECENT_KEYS\">\r\n      <recent name=\"C:\\Users\\misti\\PycharmProjects\\PP2\\pracrice5\" />\r\n    </key>\r\n    <key name=\"MoveFile.RECENT_KEYS\">\r\n      <recent name=\"C:\\Users\\defX7\\Desktop\\Laptop\\PythonProject\\practice3\" />\r\n      <recent name=\"C:\\Users\\defX7\\Desktop\\Laptop\\PythonProject\\practice3\\functions\" />\r\n      <recent name=\"C:\\Users\\defX7\\Desktop\\Laptop\\PythonProject\" />\r\n    </key>\r\n  </component>\r\n  <component name=\"RunManager\" selected=\"Python.phonebook (1)\">\r\n    <configuration name=\"config (1)\" type=\"PythonConfigurationType\" factoryName=\"Python\" temporary=\"true\" nameIsGenerated=\"true\">\r\n      <module name=\"PythonProject\" />\r\n      <option name=\"ENV_FILES\" value=\"\" />\r\n      <option name=\"INTERPRETER_OPTIONS\" value=\"\" />\r\n      <option name=\"PARENT_ENVS\" value=\"true\" />\r\n      <envs>\r\n        <env name=\"PYTHONUNBUFFERED\" value=\"1\" />\r\n      </envs>\r\n      <option name=\"SDK_HOME\" value=\"\" />\r\n      <option name=\"WORKING_DIRECTORY\" value=\"$PROJECT_DIR$/practice7-8\" />\r\n      <option name=\"IS_MODULE_SDK\" value=\"true\" />\r\n      <option name=\"ADD_CONTENT_ROOTS\" value=\"true\" />\r\n      <option name=\"ADD_SOURCE_ROOTS\" value=\"true\" />\r\n      <option name=\"SCRIPT_NAME\" value=\"$PROJECT_DIR$/practice7-8/config.py\" />\r\n      <option name=\"PARAMETERS\" value=\"\" />\r\n      <option name=\"SHOW_COMMAND_LINE\" value=\"false\" />\r\n      <option name=\"EMULATE_TERMINAL\" value=\"false\" />\r\n      <option name=\"MODULE_MODE\" value=\"false\" />\r\n      <option name=\"REDIRECT_INPUT\" value=\"false\" />\r\n      <option name=\"INPUT_FILE\" value=\"\" />\r\n      <method v=\"2\" />\r\n    </configuration>\r\n    <configuration name=\"config\" type=\"PythonConfigurationType\" factoryName=\"Python\" temporary=\"true\" nameIsGenerated=\"true\">\r\n      <module name=\"PythonProject\" />\r\n      <option name=\"ENV_FILES\" value=\"\" />\r\n      <option name=\"INTERPRETER_OPTIONS\" value=\"\" />\r\n      <option name=\"PARENT_ENVS\" value=\"true\" />\r\n      <envs>\r\n        <env name=\"PYTHONUNBUFFERED\" value=\"1\" />\r\n      </envs>\r\n      <option name=\"SDK_HOME\" value=\"\" />\r\n      <option name=\"WORKING_DIRECTORY\" value=\"$PROJECT_DIR$/practice7\" />\r\n      <option name=\"IS_MODULE_SDK\" value=\"true\" />\r\n      <option name=\"ADD_CONTENT_ROOTS\" value=\"true\" />\r\n      <option name=\"ADD_SOURCE_ROOTS\" value=\"true\" />\r\n      <option name=\"SCRIPT_NAME\" value=\"$PROJECT_DIR$/practice7/config.py\" />\r\n      <option name=\"PARAMETERS\" value=\"\" />\r\n      <option name=\"SHOW_COMMAND_LINE\" value=\"false\" />\r\n      <option name=\"EMULATE_TERMINAL\" value=\"false\" />\r\n      <option name=\"MODULE_MODE\" value=\"false\" />\r\n      <option name=\"REDIRECT_INPUT\" value=\"false\" />\r\n      <option name=\"INPUT_FILE\" value=\"\" />\r\n      <method v=\"2\" />\r\n    </configuration>\r\n    <configuration name=\"connect (1)\" type=\"PythonConfigurationType\" factoryName=\"Python\" temporary=\"true\" nameIsGenerated=\"true\">\r\n      <module name=\"PythonProject\" />\r\n      <option name=\"ENV_FILES\" value=\"\" />\r\n      <option name=\"INTERPRETER_OPTIONS\" value=\"\" />\r\n      <option name=\"PARENT_ENVS\" value=\"true\" />\r\n      <envs>\r\n        <env name=\"PYTHONUNBUFFERED\" value=\"1\" />\r\n      </envs>\r\n      <option name=\"SDK_HOME\" value=\"\" />\r\n      <option name=\"WORKING_DIRECTORY\" value=\"$PROJECT_DIR$/practice7-8\" />\r\n      <option name=\"IS_MODULE_SDK\" value=\"true\" />\r\n      <option name=\"ADD_CONTENT_ROOTS\" value=\"true\" />\r\n      <option name=\"ADD_SOURCE_ROOTS\" value=\"true\" />\r\n      <option name=\"SCRIPT_NAME\" value=\"$PROJECT_DIR$/practice7-8/connect.py\" />\r\n      <option name=\"PARAMETERS\" value=\"\" />\r\n      <option name=\"SHOW_COMMAND_LINE\" value=\"false\" />\r\n      <option name=\"EMULATE_TERMINAL\" value=\"false\" />\r\n      <option name=\"MODULE_MODE\" value=\"false\" />\r\n      <option name=\"REDIRECT_INPUT\" value=\"false\" />\r\n      <option name=\"INPUT_FILE\" value=\"\" />\r\n      <method v=\"2\" />\r\n    </configuration>\r\n    <configuration name=\"phonebook (1)\" type=\"PythonConfigurationType\" factoryName=\"Python\" temporary=\"true\" nameIsGenerated=\"true\">\r\n      <module name=\"PythonProject\" />\r\n      <option name=\"ENV_FILES\" value=\"\" />\r\n      <option name=\"INTERPRETER_OPTIONS\" value=\"\" />\r\n      <option name=\"PARENT_ENVS\" value=\"true\" />\r\n      <envs>\r\n        <env name=\"PYTHONUNBUFFERED\" value=\"1\" />\r\n      </envs>\r\n      <option name=\"SDK_HOME\" value=\"\" />\r\n      <option name=\"WORKING_DIRECTORY\" value=\"$PROJECT_DIR$/practice7-8\" />\r\n      <option name=\"IS_MODULE_SDK\" value=\"true\" />\r\n      <option name=\"ADD_CONTENT_ROOTS\" value=\"true\" />\r\n      <option name=\"ADD_SOURCE_ROOTS\" value=\"true\" />\r\n      <option name=\"SCRIPT_NAME\" value=\"$PROJECT_DIR$/practice7-8/phonebook.py\" />\r\n      <option name=\"PARAMETERS\" value=\"\" />\r\n      <option name=\"SHOW_COMMAND_LINE\" value=\"false\" />\r\n      <option name=\"EMULATE_TERMINAL\" value=\"false\" />\r\n      <option name=\"MODULE_MODE\" value=\"false\" />\r\n      <option name=\"REDIRECT_INPUT\" value=\"false\" />\r\n      <option name=\"INPUT_FILE\" value=\"\" />\r\n      <method v=\"2\" />\r\n    </configuration>\r\n    <configuration name=\"phonebook\" type=\"PythonConfigurationType\" factoryName=\"Python\" temporary=\"true\" nameIsGenerated=\"true\">\r\n      <module name=\"PythonProject\" />\r\n      <option name=\"ENV_FILES\" value=\"\" />\r\n      <option name=\"INTERPRETER_OPTIONS\" value=\"\" />\r\n      <option name=\"PARENT_ENVS\" value=\"true\" />\r\n      <envs>\r\n        <env name=\"PYTHONUNBUFFERED\" value=\"1\" />\r\n      </envs>\r\n      <option name=\"SDK_HOME\" value=\"\" />\r\n      <option name=\"WORKING_DIRECTORY\" value=\"$PROJECT_DIR$/practice7\" />\r\n      <option name=\"IS_MODULE_SDK\" value=\"true\" />\r\n      <option name=\"ADD_CONTENT_ROOTS\" value=\"true\" />\r\n      <option name=\"ADD_SOURCE_ROOTS\" value=\"true\" />\r\n      <option name=\"SCRIPT_NAME\" value=\"$PROJECT_DIR$/practice7/phonebook.py\" />\r\n      <option name=\"PARAMETERS\" value=\"\" />\r\n      <option name=\"SHOW_COMMAND_LINE\" value=\"false\" />\r\n      <option name=\"EMULATE_TERMINAL\" value=\"false\" />\r\n      <option name=\"MODULE_MODE\" value=\"false\" />\r\n      <option name=\"REDIRECT_INPUT\" value=\"false\" />\r\n      <option name=\"INPUT_FILE\" value=\"\" />\r\n      <method v=\"2\" />\r\n    </configuration>\r\n    <recent_temporary>\r\n      <list>\r\n        <item itemvalue=\"Python.phonebook (1)\" />\r\n        <item itemvalue=\"Python.connect (1)\" />\r\n        <item itemvalue=\"Python.config (1)\" />\r\n        <item itemvalue=\"Python.config\" />\r\n        <item itemvalue=\"Python.phonebook\" />\r\n      </list>\r\n    </recent_temporary>\r\n  </component>\r\n  <component name=\"SharedIndexes\">\r\n    <attachedChunks>\r\n      <set>\r\n        <option value=\"bundled-python-sdk-7e47963ff851-f0eec537fc84-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-252.23892.515\" />\r\n      </set>\r\n    </attachedChunks>\r\n  </component>\r\n  <component name=\"TaskManager\">\r\n    <task active=\"true\" id=\"Default\" summary=\"Default task\">\r\n      <changelist id=\"72a855c3-dedf-421c-9470-6d5d49bf2e6b\" name=\"Changes\" comment=\"\" />\r\n      <created>1768899334444</created>\r\n      <option name=\"number\" value=\"Default\" />\r\n      <option name=\"presentableId\" value=\"Default\" />\r\n      <updated>1768899334444</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00001\" summary=\"Home\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1768900972946</created>\r\n      <option name=\"number\" value=\"00001\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00001\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1768900972946</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00002\" summary=\"Home\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1768901035515</created>\r\n      <option name=\"number\" value=\"00002\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00002\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1768901035515</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00003\" summary=\"Home\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1768901127381</created>\r\n      <option name=\"number\" value=\"00003\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00003\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1768901127381</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00004\" summary=\"Home\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1768901252953</created>\r\n      <option name=\"number\" value=\"00004\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00004\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1768901252953</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00005\" summary=\"Home\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1768901527234</created>\r\n      <option name=\"number\" value=\"00005\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00005\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1768901527234</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00006\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1768901587157</created>\r\n      <option name=\"number\" value=\"00006\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00006\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1768901587157</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00007\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1768901681869</created>\r\n      <option name=\"number\" value=\"00007\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00007\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1768901681869</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00008\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1768902109514</created>\r\n      <option name=\"number\" value=\"00008\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00008\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1768902109514</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00009\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1768902288912</created>\r\n      <option name=\"number\" value=\"00009\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00009\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1768902288912</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00010\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1768902345472</created>\r\n      <option name=\"number\" value=\"00010\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00010\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1768902345472</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00011\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1768902404077</created>\r\n      <option name=\"number\" value=\"00011\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00011\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1768902404077</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00012\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1768902658568</created>\r\n      <option name=\"number\" value=\"00012\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00012\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1768902658568</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00013\" summary=\"broken file fix\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1769435732147</created>\r\n      <option name=\"number\" value=\"00013\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00013\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1769435732147</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00014\" summary=\"broken file fix\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1769503867181</created>\r\n      <option name=\"number\" value=\"00014\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00014\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1769503867181</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00015\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1769503882985</created>\r\n      <option name=\"number\" value=\"00015\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00015\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1769503882985</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00016\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1769503987497</created>\r\n      <option name=\"number\" value=\"00016\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00016\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1769503987497</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00017\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1769504462904</created>\r\n      <option name=\"number\" value=\"00017\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00017\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1769504462904</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00018\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1769505336544</created>\r\n      <option name=\"number\" value=\"00018\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00018\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1769505336544</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00019\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1772525402582</created>\r\n      <option name=\"number\" value=\"00019\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00019\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1772525402582</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00020\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1772525486626</created>\r\n      <option name=\"number\" value=\"00020\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00020\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1772525486626</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00021\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1772525515570</created>\r\n      <option name=\"number\" value=\"00021\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00021\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1772525515570</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00022\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1774884471021</created>\r\n      <option name=\"number\" value=\"00022\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00022\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1774884471021</updated>\r\n    </task>\r\n    <option name=\"localTasksCounter\" value=\"23\" />\r\n    <servers />\r\n  </component>\r\n  <component name=\"VcsManagerConfiguration\">\r\n    <MESSAGE value=\"Home\" />\r\n    <MESSAGE value=\"broken file fix\" />\r\n    <MESSAGE value=\"3\" />\r\n    <option name=\"LAST_COMMIT_MESSAGE\" value=\"3\" />\r\n  </component>\r\n</project>
+-Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+-<+>UTF-8
+-===================================================================
+-diff --git a/.idea/workspace.xml b/.idea/workspace.xml
+---- a/.idea/workspace.xml	(revision dfefe24c8f760d57e2160407ff7ced258e3d4ed3)
+-+++ b/.idea/workspace.xml	(date 1776135764629)
+-@@ -52,41 +52,43 @@
+-     <option name="hideEmptyMiddlePackages" value="true" />
+-     <option name="showLibraryContents" value="true" />
+-   </component>
+--  <component name="PropertiesComponent"><![CDATA[{
+--  "keyToString": {
+--    "ModuleVcsDetector.initialDetectionPerformed": "true",
+--    "Python.Get_started.executor": "Run",
+--    "Python.Syntx.executor": "Run",
+--    "Python.args_kwargs.executor": "Run",
+--    "Python.config (1).executor": "Run",
+--    "Python.config.executor": "Run",
+--    "Python.connect (1).executor": "Run",
+--    "Python.connect.executor": "Run",
+--    "Python.create_tables.executor": "Run",
+--    "Python.data_types.executor": "Run",
+--    "Python.functions_arguments_returnvalues.executor": "Run",
+--    "Python.phonebook (1).executor": "Run",
+--    "Python.phonebook.executor": "Run",
+--    "Python.test.executor": "Run",
+--    "RunOnceActivity.MCP Project settings loaded": "true",
+--    "RunOnceActivity.ShowReadmeOnStart": "true",
+--    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+--    "RunOnceActivity.git.unshallow": "true",
+--    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
+--    "git-widget-placeholder": "master",
+--    "junie.onboarding.icon.badge.shown": "true",
+--    "last_opened_file_path": "C:/Users/misti/PycharmProjects/PP2/pracrice5",
+--    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable",
+--    "to.speed.mode.migration.done": "true"
+-+  <component name="PropertiesComponent">{
+-+  &quot;keyToString&quot;: {
+-+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+-+    &quot;Python.Get_started.executor&quot;: &quot;Run&quot;,
+-+    &quot;Python.Syntx.executor&quot;: &quot;Run&quot;,
+-+    &quot;Python.args_kwargs.executor&quot;: &quot;Run&quot;,
+-+    &quot;Python.config (1).executor&quot;: &quot;Run&quot;,
+-+    &quot;Python.config (2).executor&quot;: &quot;Run&quot;,
+-+    &quot;Python.config.executor&quot;: &quot;Run&quot;,
+-+    &quot;Python.connect (1).executor&quot;: &quot;Run&quot;,
+-+    &quot;Python.connect.executor&quot;: &quot;Run&quot;,
+-+    &quot;Python.create_tables.executor&quot;: &quot;Run&quot;,
+-+    &quot;Python.data_types.executor&quot;: &quot;Run&quot;,
+-+    &quot;Python.functions_arguments_returnvalues.executor&quot;: &quot;Run&quot;,
+-+    &quot;Python.phonebook (1).executor&quot;: &quot;Run&quot;,
+-+    &quot;Python.phonebook (2).executor&quot;: &quot;Run&quot;,
+-+    &quot;Python.phonebook.executor&quot;: &quot;Run&quot;,
+-+    &quot;Python.test.executor&quot;: &quot;Run&quot;,
+-+    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
+-+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+-+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+-+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+-+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
+-+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+-+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+-+    &quot;last_opened_file_path&quot;: &quot;C:/Users/misti/PycharmProjects/PP2/pracrice5&quot;,
+-+    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;,
+-+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;
+-   },
+--  "keyToStringList": {
+--    "GitStage.ChangesTree.GroupingKeys": [
+--      "directory",
+--      "module",
+--      "repository"
+-+  &quot;keyToStringList&quot;: {
+-+    &quot;GitStage.ChangesTree.GroupingKeys&quot;: [
+-+      &quot;directory&quot;,
+-+      &quot;module&quot;,
+-+      &quot;repository&quot;
+-     ]
+-   }
+--}]]></component>
+-+}</component>
+-   <component name="RecentsManager">
+-     <key name="CopyFile.RECENT_KEYS">
+-       <recent name="C:\Users\misti\PycharmProjects\PP2\pracrice5" />
+-@@ -97,8 +99,8 @@
+-       <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject" />
+-     </key>
+-   </component>
+--  <component name="RunManager" selected="Python.phonebook (1)">
+--    <configuration name="config (1)" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+-+  <component name="RunManager" selected="Python.phonebook (2)">
+-+    <configuration name="config (2)" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+-       <module name="PythonProject" />
+-       <option name="ENV_FILES" value="" />
+-       <option name="INTERPRETER_OPTIONS" value="" />
+-@@ -107,11 +109,11 @@
+-         <env name="PYTHONUNBUFFERED" value="1" />
+-       </envs>
+-       <option name="SDK_HOME" value="" />
+--      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/practice7-8" />
+-+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/practice8" />
+-       <option name="IS_MODULE_SDK" value="true" />
+-       <option name="ADD_CONTENT_ROOTS" value="true" />
+-       <option name="ADD_SOURCE_ROOTS" value="true" />
+--      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/practice7-8/config.py" />
+-+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/practice8/config.py" />
+-       <option name="PARAMETERS" value="" />
+-       <option name="SHOW_COMMAND_LINE" value="false" />
+-       <option name="EMULATE_TERMINAL" value="false" />
+-@@ -120,7 +122,7 @@
+-       <option name="INPUT_FILE" value="" />
+-       <method v="2" />
+-     </configuration>
+--    <configuration name="config" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+-+    <configuration name="connect (1)" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+-       <module name="PythonProject" />
+-       <option name="ENV_FILES" value="" />
+-       <option name="INTERPRETER_OPTIONS" value="" />
+-@@ -129,11 +131,11 @@
+-         <env name="PYTHONUNBUFFERED" value="1" />
+-       </envs>
+-       <option name="SDK_HOME" value="" />
+--      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/practice7" />
+-+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/practice7-8" />
+-       <option name="IS_MODULE_SDK" value="true" />
+-       <option name="ADD_CONTENT_ROOTS" value="true" />
+-       <option name="ADD_SOURCE_ROOTS" value="true" />
+--      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/practice7/config.py" />
+-+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/practice7-8/connect.py" />
+-       <option name="PARAMETERS" value="" />
+-       <option name="SHOW_COMMAND_LINE" value="false" />
+-       <option name="EMULATE_TERMINAL" value="false" />
+-@@ -142,7 +144,7 @@
+-       <option name="INPUT_FILE" value="" />
+-       <method v="2" />
+-     </configuration>
+--    <configuration name="connect (1)" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+-+    <configuration name="connect" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+-       <module name="PythonProject" />
+-       <option name="ENV_FILES" value="" />
+-       <option name="INTERPRETER_OPTIONS" value="" />
+-@@ -151,11 +153,11 @@
+-         <env name="PYTHONUNBUFFERED" value="1" />
+-       </envs>
+-       <option name="SDK_HOME" value="" />
+--      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/practice7-8" />
+-+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/practice8" />
+-       <option name="IS_MODULE_SDK" value="true" />
+-       <option name="ADD_CONTENT_ROOTS" value="true" />
+-       <option name="ADD_SOURCE_ROOTS" value="true" />
+--      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/practice7-8/connect.py" />
+-+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/practice8/connect.py" />
+-       <option name="PARAMETERS" value="" />
+-       <option name="SHOW_COMMAND_LINE" value="false" />
+-       <option name="EMULATE_TERMINAL" value="false" />
+-@@ -186,7 +188,7 @@
+-       <option name="INPUT_FILE" value="" />
+-       <method v="2" />
+-     </configuration>
+--    <configuration name="phonebook" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+-+    <configuration name="phonebook (2)" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+-       <module name="PythonProject" />
+-       <option name="ENV_FILES" value="" />
+-       <option name="INTERPRETER_OPTIONS" value="" />
+-@@ -195,11 +197,11 @@
+-         <env name="PYTHONUNBUFFERED" value="1" />
+-       </envs>
+-       <option name="SDK_HOME" value="" />
+--      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/practice7" />
+-+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/practice8" />
+-       <option name="IS_MODULE_SDK" value="true" />
+-       <option name="ADD_CONTENT_ROOTS" value="true" />
+-       <option name="ADD_SOURCE_ROOTS" value="true" />
+--      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/practice7/phonebook.py" />
+-+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/practice8/phonebook.py" />
+-       <option name="PARAMETERS" value="" />
+-       <option name="SHOW_COMMAND_LINE" value="false" />
+-       <option name="EMULATE_TERMINAL" value="false" />
+-@@ -210,11 +212,11 @@
+-     </configuration>
+-     <recent_temporary>
+-       <list>
+-+        <item itemvalue="Python.phonebook (2)" />
+-+        <item itemvalue="Python.connect" />
+-+        <item itemvalue="Python.config (2)" />
+-         <item itemvalue="Python.phonebook (1)" />
+-         <item itemvalue="Python.connect (1)" />
+--        <item itemvalue="Python.config (1)" />
+--        <item itemvalue="Python.config" />
+--        <item itemvalue="Python.phonebook" />
+-       </list>
+-     </recent_temporary>
+-   </component>
+-@@ -409,7 +411,31 @@
+-       <option name="project" value="LOCAL" />
+-       <updated>1774884471021</updated>
+-     </task>
+--    <option name="localTasksCounter" value="23" />
+-+    <task id="LOCAL-00023" summary="3">
+-+      <option name="closed" value="true" />
+-+      <created>1774929834470</created>
+-+      <option name="number" value="00023" />
+-+      <option name="presentableId" value="LOCAL-00023" />
+-+      <option name="project" value="LOCAL" />
+-+      <updated>1774929834470</updated>
+-+    </task>
+-+    <task id="LOCAL-00024" summary="3">
+-+      <option name="closed" value="true" />
+-+      <created>1774943357928</created>
+-+      <option name="number" value="00024" />
+-+      <option name="presentableId" value="LOCAL-00024" />
+-+      <option name="project" value="LOCAL" />
+-+      <updated>1774943357928</updated>
+-+    </task>
+-+    <task id="LOCAL-00025" summary="3">
+-+      <option name="closed" value="true" />
+-+      <created>1774943425482</created>
+-+      <option name="number" value="00025" />
+-+      <option name="presentableId" value="LOCAL-00025" />
+-+      <option name="project" value="LOCAL" />
+-+      <updated>1774943425482</updated>
+-+    </task>
+-+    <option name="localTasksCounter" value="26" />
+-     <servers />
+-   </component>
+-   <component name="VcsManagerConfiguration">
+Index: .idea/shelf/Uncommitted_changes_before_Update_at_14_04_2026_8_03.xml
+===================================================================
+diff --git a/.idea/shelf/Uncommitted_changes_before_Update_at_14_04_2026_8_03.xml b/.idea/shelf/Uncommitted_changes_before_Update_at_14_04_2026_8_03.xml
+deleted file mode 100644
+--- a/.idea/shelf/Uncommitted_changes_before_Update_at_14_04_2026_8_03.xml	(revision 251582ab168146b53d70e2bc2fa36726e1d0e01a)
++++ /dev/null	(revision 251582ab168146b53d70e2bc2fa36726e1d0e01a)
+@@ -1,4 +0,0 @@
+-<changelist name="Uncommitted_changes_before_Update_at_14_04_2026_8_03" date="1776135805682" recycled="true" deleted="true">
+-  <option name="PATH" value="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Update_at_14_04_2026_8_03/shelved.patch" />
+-  <option name="DESCRIPTION" value="Uncommitted changes before Update at 14.04.2026 8:03" />
+-</changelist>
+\ No newline at end of file
+Index: practice10/snake/config.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/practice10/snake/config.py b/practice10/snake/config.py
+new file mode 100644
+--- /dev/null	(date 1776698636363)
++++ b/practice10/snake/config.py	(date 1776698636363)
+@@ -0,0 +1,33 @@
++WIDTH = 640
++HEIGHT = 680
++CELL = 32
++COLS = WIDTH // CELL
++ROWS = (HEIGHT - 80) // CELL
++
++FPS_DEFAULT = 8
++
++DB_CONFIG = {
++    "dbname": "myappdb",
++    "user": "postgres",
++    "password": "zhangazhanga1409",
++    "host": "localhost",
++    "port": 5432,
++}
++
++BLACK       = (10, 10, 10)
++WHITE       = (240, 240, 240)
++GRAY        = (90, 90, 90)
++LIGHT_GRAY  = (180, 180, 180)
++YELLOW      = (240, 200, 60)
++BG          = (18, 18, 28)
++GRID_COLOR  = (35, 35, 50)
++FOOD_NORM   = (80, 200, 120)
++FOOD_BONUS  = (240, 200, 60)
++FOOD_RARE   = (220, 120, 255)
++FOOD_POISON = (150, 30, 30)
++PU_SPEED    = (255, 140, 30)
++PU_SLOW     = (60, 160, 255)
++PU_SHIELD   = (100, 240, 200)
++OBSTACLE    = (130, 100, 60)
++HUD_BG      = (22, 22, 35)
++WALL        = (70, 70, 90)
+\ No newline at end of file
+Index: practice10/snake/db.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/practice10/snake/db.py b/practice10/snake/db.py
+new file mode 100644
+--- /dev/null	(date 1776698341829)
++++ b/practice10/snake/db.py	(date 1776698341829)
+@@ -0,0 +1,100 @@
++import psycopg2
++from psycopg2 import OperationalError
++from config import DB_CONFIG
++
++_conn = None
++
++def get_conn():
++    global _conn
++    if _conn is None or _conn.closed:
++        _conn = psycopg2.connect(**DB_CONFIG)
++    return _conn
++
++def init_db():
++    try:
++        conn = get_conn()
++        cur = conn.cursor()
++        cur.execute("""
++            CREATE TABLE IF NOT EXISTS players (
++                id       SERIAL PRIMARY KEY,
++                username VARCHAR(50) UNIQUE NOT NULL
++            );
++        """)
++        cur.execute("""
++            CREATE TABLE IF NOT EXISTS game_sessions (
++                id            SERIAL PRIMARY KEY,
++                player_id     INTEGER REFERENCES players(id),
++                score         INTEGER   NOT NULL,
++                level_reached INTEGER   NOT NULL,
++                played_at     TIMESTAMP DEFAULT NOW()
++            );
++        """)
++        conn.commit()
++        cur.close()
++        return True
++    except OperationalError as e:
++        print(f"[DB] Connection failed: {e}")
++        return False
++
++def get_or_create_player(username):
++    conn = get_conn()
++    cur = conn.cursor()
++    cur.execute("SELECT id FROM players WHERE username = %s", (username,))
++    row = cur.fetchone()
++    if row:
++        player_id = row[0]
++    else:
++        cur.execute("INSERT INTO players (username) VALUES (%s) RETURNING id", (username,))
++        player_id = cur.fetchone()[0]
++        conn.commit()
++    cur.close()
++    return player_id
++
++def save_session(username, score, level_reached):
++    try:
++        pid = get_or_create_player(username)
++        conn = get_conn()
++        cur = conn.cursor()
++        cur.execute("""
++            INSERT INTO game_sessions (player_id, score, level_reached)
++            VALUES (%s, %s, %s)
++        """, (pid, score, level_reached))
++        conn.commit()
++        cur.close()
++    except Exception as e:
++        print(f"[DB] save_session error: {e}")
++
++def get_leaderboard(limit=10):
++    try:
++        conn = get_conn()
++        cur = conn.cursor()
++        cur.execute("""
++            SELECT p.username, gs.score, gs.level_reached, gs.played_at
++            FROM game_sessions gs
++            JOIN players p ON gs.player_id = p.id
++            ORDER BY gs.score DESC, gs.played_at DESC
++            LIMIT %s
++        """, (limit,))
++        rows = cur.fetchall()
++        cur.close()
++        return [(i+1, r[0], r[1], r[2], r[3]) for i, r in enumerate(rows)]
++    except Exception as e:
++        print(f"[DB] get_leaderboard error: {e}")
++        return []
++
++def get_personal_best(username):
++    try:
++        conn = get_conn()
++        cur = conn.cursor()
++        cur.execute("""
++            SELECT MAX(gs.score)
++            FROM game_sessions gs
++            JOIN players p ON gs.player_id = p.id
++            WHERE p.username = %s
++        """, (username,))
++        row = cur.fetchone()
++        cur.close()
++        return row[0] if row and row[0] is not None else 0
++    except Exception as e:
++        print(f"[DB] get_personal_best error: {e}")
++        return 0
+\ No newline at end of file
+Index: .idea/workspace.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+><?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n<project version=\"4\">\r\n  <component name=\"AutoImportSettings\">\r\n    <option name=\"autoReloadType\" value=\"SELECTIVE\" />\r\n  </component>\r\n  <component name=\"ChangeListManager\">\r\n    <list default=\"true\" id=\"72a855c3-dedf-421c-9470-6d5d49bf2e6b\" name=\"Changes\" comment=\"\">\r\n      <change afterPath=\"$PROJECT_DIR$/pracrice5/raw.txt\" afterDir=\"false\" />\r\n      <change afterPath=\"$PROJECT_DIR$/pracrice5/regX.py\" afterDir=\"false\" />\r\n      <change afterPath=\"$PROJECT_DIR$/practice4/json.py\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/.idea/PythonProject.iml\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/.idea/PythonProject.iml\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/.idea/misc.xml\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/.idea/misc.xml\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/.idea/workspace.xml\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/.idea/workspace.xml\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/test/test.py\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/test/test.py\" afterDir=\"false\" />\r\n    </list>\r\n    <option name=\"SHOW_DIALOG\" value=\"false\" />\r\n    <option name=\"HIGHLIGHT_CONFLICTS\" value=\"true\" />\r\n    <option name=\"HIGHLIGHT_NON_ACTIVE_CHANGELIST\" value=\"false\" />\r\n    <option name=\"LAST_RESOLUTION\" value=\"IGNORE\" />\r\n  </component>\r\n  <component name=\"FileTemplateManagerImpl\">\r\n    <option name=\"RECENT_TEMPLATES\">\r\n      <list>\r\n        <option value=\"Python Script\" />\r\n      </list>\r\n    </option>\r\n  </component>\r\n  <component name=\"Git.Settings\">\r\n    <option name=\"RECENT_GIT_ROOT_PATH\" value=\"$PROJECT_DIR$\" />\r\n  </component>\r\n  <component name=\"GitHubPullRequestSearchHistory\">{\r\n  &quot;lastFilter&quot;: {\r\n    &quot;state&quot;: &quot;OPEN&quot;,\r\n    &quot;assignee&quot;: &quot;AkhmZhangir&quot;\r\n  }\r\n}</component>\r\n  <component name=\"GithubPullRequestsUISettings\">{\r\n  &quot;selectedUrlAndAccountId&quot;: {\r\n    &quot;url&quot;: &quot;https://github.com/AkhmZhangir/PP2.git&quot;,\r\n    &quot;accountId&quot;: &quot;38c72f29-3ba6-4a4e-b803-7cf464a17c08&quot;\r\n  }\r\n}</component>\r\n  <component name=\"McpProjectServerCommands\">\r\n    <commands />\r\n    <urls />\r\n  </component>\r\n  <component name=\"ProjectColorInfo\">{\r\n  &quot;associatedIndex&quot;: 0\r\n}</component>\r\n  <component name=\"ProjectId\" id=\"38Vz41FG6NPE1N1kOCRWki9A8eA\" />\r\n  <component name=\"ProjectViewState\">\r\n    <option name=\"hideEmptyMiddlePackages\" value=\"true\" />\r\n    <option name=\"showLibraryContents\" value=\"true\" />\r\n  </component>\r\n  <component name=\"PropertiesComponent\">{\r\n  &quot;keyToString&quot;: {\r\n    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,\r\n    &quot;Python.Get_started.executor&quot;: &quot;Run&quot;,\r\n    &quot;Python.Syntx.executor&quot;: &quot;Run&quot;,\r\n    &quot;Python.args_kwargs.executor&quot;: &quot;Run&quot;,\r\n    &quot;Python.clock.executor&quot;: &quot;Run&quot;,\r\n    &quot;Python.clock_experiment.executor&quot;: &quot;Run&quot;,\r\n    &quot;Python.config (1).executor&quot;: &quot;Run&quot;,\r\n    &quot;Python.config.executor&quot;: &quot;Run&quot;,\r\n    &quot;Python.connect (1).executor&quot;: &quot;Run&quot;,\r\n    &quot;Python.connect.executor&quot;: &quot;Run&quot;,\r\n    &quot;Python.create_tables.executor&quot;: &quot;Run&quot;,\r\n    &quot;Python.data_types.executor&quot;: &quot;Run&quot;,\r\n    &quot;Python.functions_arguments_returnvalues.executor&quot;: &quot;Run&quot;,\r\n    &quot;Python.game.executor&quot;: &quot;Run&quot;,\r\n    &quot;Python.music_player_pygame.executor&quot;: &quot;Run&quot;,\r\n    &quot;Python.paint.executor&quot;: &quot;Run&quot;,\r\n    &quot;Python.phonebook (1).executor&quot;: &quot;Run&quot;,\r\n    &quot;Python.phonebook.executor&quot;: &quot;Run&quot;,\r\n    &quot;Python.test.executor&quot;: &quot;Run&quot;,\r\n    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,\r\n    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,\r\n    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,\r\n    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,\r\n    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,\r\n    &quot;git-widget-placeholder&quot;: &quot;master&quot;,\r\n    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,\r\n    &quot;last_opened_file_path&quot;: &quot;C:/Users/defX7/Desktop/Laptop/PythonProject/practice9/MusicPlayer/music&quot;,\r\n    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;,\r\n    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;\r\n  },\r\n  &quot;keyToStringList&quot;: {\r\n    &quot;GitStage.ChangesTree.GroupingKeys&quot;: [\r\n      &quot;directory&quot;,\r\n      &quot;module&quot;,\r\n      &quot;repository&quot;\r\n    ]\r\n  }\r\n}</component>\r\n  <component name=\"RecentsManager\">\r\n    <key name=\"CopyFile.RECENT_KEYS\">\r\n      <recent name=\"C:\\Users\\defX7\\Desktop\\Laptop\\PythonProject\\practice9\\MusicPlayer\\music\" />\r\n      <recent name=\"C:\\Users\\defX7\\Desktop\\Laptop\\PythonProject\\practice9\\MusicPlayer\" />\r\n      <recent name=\"C:\\Users\\misti\\PycharmProjects\\PP2\\pracrice5\" />\r\n    </key>\r\n    <key name=\"MoveFile.RECENT_KEYS\">\r\n      <recent name=\"C:\\Users\\defX7\\Desktop\\Laptop\\PythonProject\\practice9\\MusicPlayer\\music\" />\r\n      <recent name=\"C:\\Users\\defX7\\Desktop\\Laptop\\PythonProject\\practice9\\clock\" />\r\n      <recent name=\"C:\\Users\\defX7\\Desktop\\Laptop\\PythonProject\\practice3\" />\r\n      <recent name=\"C:\\Users\\defX7\\Desktop\\Laptop\\PythonProject\\practice3\\functions\" />\r\n      <recent name=\"C:\\Users\\defX7\\Desktop\\Laptop\\PythonProject\" />\r\n    </key>\r\n  </component>\r\n  <component name=\"RunManager\" selected=\"Python.paint\">\r\n    <configuration name=\"clock\" type=\"PythonConfigurationType\" factoryName=\"Python\" temporary=\"true\" nameIsGenerated=\"true\">\r\n      <module name=\"PythonProject\" />\r\n      <option name=\"ENV_FILES\" value=\"\" />\r\n      <option name=\"INTERPRETER_OPTIONS\" value=\"\" />\r\n      <option name=\"PARENT_ENVS\" value=\"true\" />\r\n      <envs>\r\n        <env name=\"PYTHONUNBUFFERED\" value=\"1\" />\r\n      </envs>\r\n      <option name=\"SDK_HOME\" value=\"\" />\r\n      <option name=\"WORKING_DIRECTORY\" value=\"$PROJECT_DIR$/practice9/clock\" />\r\n      <option name=\"IS_MODULE_SDK\" value=\"true\" />\r\n      <option name=\"ADD_CONTENT_ROOTS\" value=\"true\" />\r\n      <option name=\"ADD_SOURCE_ROOTS\" value=\"true\" />\r\n      <option name=\"SCRIPT_NAME\" value=\"$PROJECT_DIR$/practice9/clock/clock.py\" />\r\n      <option name=\"PARAMETERS\" value=\"\" />\r\n      <option name=\"SHOW_COMMAND_LINE\" value=\"false\" />\r\n      <option name=\"EMULATE_TERMINAL\" value=\"false\" />\r\n      <option name=\"MODULE_MODE\" value=\"false\" />\r\n      <option name=\"REDIRECT_INPUT\" value=\"false\" />\r\n      <option name=\"INPUT_FILE\" value=\"\" />\r\n      <method v=\"2\" />\r\n    </configuration>\r\n    <configuration name=\"clock_experiment\" type=\"PythonConfigurationType\" factoryName=\"Python\" temporary=\"true\" nameIsGenerated=\"true\">\r\n      <module name=\"PythonProject\" />\r\n      <option name=\"ENV_FILES\" value=\"\" />\r\n      <option name=\"INTERPRETER_OPTIONS\" value=\"\" />\r\n      <option name=\"PARENT_ENVS\" value=\"true\" />\r\n      <envs>\r\n        <env name=\"PYTHONUNBUFFERED\" value=\"1\" />\r\n      </envs>\r\n      <option name=\"SDK_HOME\" value=\"\" />\r\n      <option name=\"WORKING_DIRECTORY\" value=\"$PROJECT_DIR$/practice9/clock\" />\r\n      <option name=\"IS_MODULE_SDK\" value=\"true\" />\r\n      <option name=\"ADD_CONTENT_ROOTS\" value=\"true\" />\r\n      <option name=\"ADD_SOURCE_ROOTS\" value=\"true\" />\r\n      <option name=\"SCRIPT_NAME\" value=\"$PROJECT_DIR$/practice9/clock/clock_experiment.py\" />\r\n      <option name=\"PARAMETERS\" value=\"\" />\r\n      <option name=\"SHOW_COMMAND_LINE\" value=\"false\" />\r\n      <option name=\"EMULATE_TERMINAL\" value=\"false\" />\r\n      <option name=\"MODULE_MODE\" value=\"false\" />\r\n      <option name=\"REDIRECT_INPUT\" value=\"false\" />\r\n      <option name=\"INPUT_FILE\" value=\"\" />\r\n      <method v=\"2\" />\r\n    </configuration>\r\n    <configuration name=\"game\" type=\"PythonConfigurationType\" factoryName=\"Python\" temporary=\"true\" nameIsGenerated=\"true\">\r\n      <module name=\"PythonProject\" />\r\n      <option name=\"ENV_FILES\" value=\"\" />\r\n      <option name=\"INTERPRETER_OPTIONS\" value=\"\" />\r\n      <option name=\"PARENT_ENVS\" value=\"true\" />\r\n      <envs>\r\n        <env name=\"PYTHONUNBUFFERED\" value=\"1\" />\r\n      </envs>\r\n      <option name=\"SDK_HOME\" value=\"\" />\r\n      <option name=\"WORKING_DIRECTORY\" value=\"$PROJECT_DIR$/practice9/moving ball\" />\r\n      <option name=\"IS_MODULE_SDK\" value=\"true\" />\r\n      <option name=\"ADD_CONTENT_ROOTS\" value=\"true\" />\r\n      <option name=\"ADD_SOURCE_ROOTS\" value=\"true\" />\r\n      <option name=\"SCRIPT_NAME\" value=\"$PROJECT_DIR$/practice9/moving ball/game.py\" />\r\n      <option name=\"PARAMETERS\" value=\"\" />\r\n      <option name=\"SHOW_COMMAND_LINE\" value=\"false\" />\r\n      <option name=\"EMULATE_TERMINAL\" value=\"false\" />\r\n      <option name=\"MODULE_MODE\" value=\"false\" />\r\n      <option name=\"REDIRECT_INPUT\" value=\"false\" />\r\n      <option name=\"INPUT_FILE\" value=\"\" />\r\n      <method v=\"2\" />\r\n    </configuration>\r\n    <configuration name=\"music_player_pygame\" type=\"PythonConfigurationType\" factoryName=\"Python\" temporary=\"true\" nameIsGenerated=\"true\">\r\n      <module name=\"PythonProject\" />\r\n      <option name=\"ENV_FILES\" value=\"\" />\r\n      <option name=\"INTERPRETER_OPTIONS\" value=\"\" />\r\n      <option name=\"PARENT_ENVS\" value=\"true\" />\r\n      <envs>\r\n        <env name=\"PYTHONUNBUFFERED\" value=\"1\" />\r\n      </envs>\r\n      <option name=\"SDK_HOME\" value=\"\" />\r\n      <option name=\"WORKING_DIRECTORY\" value=\"$PROJECT_DIR$/practice9/MusicPlayer\" />\r\n      <option name=\"IS_MODULE_SDK\" value=\"true\" />\r\n      <option name=\"ADD_CONTENT_ROOTS\" value=\"true\" />\r\n      <option name=\"ADD_SOURCE_ROOTS\" value=\"true\" />\r\n      <option name=\"SCRIPT_NAME\" value=\"$PROJECT_DIR$/practice9/MusicPlayer/music_player_pygame.py\" />\r\n      <option name=\"PARAMETERS\" value=\"\" />\r\n      <option name=\"SHOW_COMMAND_LINE\" value=\"false\" />\r\n      <option name=\"EMULATE_TERMINAL\" value=\"false\" />\r\n      <option name=\"MODULE_MODE\" value=\"false\" />\r\n      <option name=\"REDIRECT_INPUT\" value=\"false\" />\r\n      <option name=\"INPUT_FILE\" value=\"\" />\r\n      <method v=\"2\" />\r\n    </configuration>\r\n    <configuration name=\"paint\" type=\"PythonConfigurationType\" factoryName=\"Python\" temporary=\"true\" nameIsGenerated=\"true\">\r\n      <module name=\"PythonProject\" />\r\n      <option name=\"ENV_FILES\" value=\"\" />\r\n      <option name=\"INTERPRETER_OPTIONS\" value=\"\" />\r\n      <option name=\"PARENT_ENVS\" value=\"true\" />\r\n      <envs>\r\n        <env name=\"PYTHONUNBUFFERED\" value=\"1\" />\r\n      </envs>\r\n      <option name=\"SDK_HOME\" value=\"\" />\r\n      <option name=\"WORKING_DIRECTORY\" value=\"$PROJECT_DIR$/practice10\" />\r\n      <option name=\"IS_MODULE_SDK\" value=\"true\" />\r\n      <option name=\"ADD_CONTENT_ROOTS\" value=\"true\" />\r\n      <option name=\"ADD_SOURCE_ROOTS\" value=\"true\" />\r\n      <option name=\"SCRIPT_NAME\" value=\"$PROJECT_DIR$/practice10/paint.py\" />\r\n      <option name=\"PARAMETERS\" value=\"\" />\r\n      <option name=\"SHOW_COMMAND_LINE\" value=\"false\" />\r\n      <option name=\"EMULATE_TERMINAL\" value=\"false\" />\r\n      <option name=\"MODULE_MODE\" value=\"false\" />\r\n      <option name=\"REDIRECT_INPUT\" value=\"false\" />\r\n      <option name=\"INPUT_FILE\" value=\"\" />\r\n      <method v=\"2\" />\r\n    </configuration>\r\n    <recent_temporary>\r\n      <list>\r\n        <item itemvalue=\"Python.paint\" />\r\n        <item itemvalue=\"Python.game\" />\r\n        <item itemvalue=\"Python.clock_experiment\" />\r\n        <item itemvalue=\"Python.music_player_pygame\" />\r\n        <item itemvalue=\"Python.clock\" />\r\n      </list>\r\n    </recent_temporary>\r\n  </component>\r\n  <component name=\"SharedIndexes\">\r\n    <attachedChunks>\r\n      <set>\r\n        <option value=\"bundled-python-sdk-7e47963ff851-f0eec537fc84-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-252.23892.515\" />\r\n      </set>\r\n    </attachedChunks>\r\n  </component>\r\n  <component name=\"TaskManager\">\r\n    <task active=\"true\" id=\"Default\" summary=\"Default task\">\r\n      <changelist id=\"72a855c3-dedf-421c-9470-6d5d49bf2e6b\" name=\"Changes\" comment=\"\" />\r\n      <created>1768899334444</created>\r\n      <option name=\"number\" value=\"Default\" />\r\n      <option name=\"presentableId\" value=\"Default\" />\r\n      <updated>1768899334444</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00001\" summary=\"Home\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1768900972946</created>\r\n      <option name=\"number\" value=\"00001\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00001\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1768900972946</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00002\" summary=\"Home\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1768901035515</created>\r\n      <option name=\"number\" value=\"00002\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00002\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1768901035515</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00003\" summary=\"Home\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1768901127381</created>\r\n      <option name=\"number\" value=\"00003\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00003\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1768901127381</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00004\" summary=\"Home\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1768901252953</created>\r\n      <option name=\"number\" value=\"00004\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00004\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1768901252953</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00005\" summary=\"Home\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1768901527234</created>\r\n      <option name=\"number\" value=\"00005\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00005\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1768901527234</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00006\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1768901587157</created>\r\n      <option name=\"number\" value=\"00006\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00006\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1768901587157</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00007\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1768901681869</created>\r\n      <option name=\"number\" value=\"00007\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00007\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1768901681869</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00008\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1768902109514</created>\r\n      <option name=\"number\" value=\"00008\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00008\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1768902109514</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00009\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1768902288912</created>\r\n      <option name=\"number\" value=\"00009\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00009\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1768902288912</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00010\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1768902345472</created>\r\n      <option name=\"number\" value=\"00010\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00010\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1768902345472</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00011\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1768902404077</created>\r\n      <option name=\"number\" value=\"00011\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00011\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1768902404077</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00012\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1768902658568</created>\r\n      <option name=\"number\" value=\"00012\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00012\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1768902658568</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00013\" summary=\"broken file fix\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1769435732147</created>\r\n      <option name=\"number\" value=\"00013\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00013\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1769435732147</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00014\" summary=\"broken file fix\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1769503867181</created>\r\n      <option name=\"number\" value=\"00014\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00014\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1769503867181</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00015\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1769503882985</created>\r\n      <option name=\"number\" value=\"00015\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00015\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1769503882985</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00016\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1769503987497</created>\r\n      <option name=\"number\" value=\"00016\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00016\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1769503987497</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00017\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1769504462904</created>\r\n      <option name=\"number\" value=\"00017\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00017\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1769504462904</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00018\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1769505336544</created>\r\n      <option name=\"number\" value=\"00018\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00018\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1769505336544</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00019\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1772525402582</created>\r\n      <option name=\"number\" value=\"00019\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00019\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1772525402582</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00020\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1772525486626</created>\r\n      <option name=\"number\" value=\"00020\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00020\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1772525486626</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00021\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1772525515570</created>\r\n      <option name=\"number\" value=\"00021\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00021\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1772525515570</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00022\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1774884471021</created>\r\n      <option name=\"number\" value=\"00022\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00022\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1774884471021</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00023\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1776138670194</created>\r\n      <option name=\"number\" value=\"00023\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00023\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1776138670194</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00024\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1776139324837</created>\r\n      <option name=\"number\" value=\"00024\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00024\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1776139324837</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00025\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1776139345067</created>\r\n      <option name=\"number\" value=\"00025\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00025\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1776139345067</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00026\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1776139754743</created>\r\n      <option name=\"number\" value=\"00026\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00026\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1776139754743</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00027\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1776141401819</created>\r\n      <option name=\"number\" value=\"00027\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00027\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1776141401819</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00028\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1776141957268</created>\r\n      <option name=\"number\" value=\"00028\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00028\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1776141957268</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00029\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1776150893939</created>\r\n      <option name=\"number\" value=\"00029\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00029\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1776150893939</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00030\" summary=\"3\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1776151580741</created>\r\n      <option name=\"number\" value=\"00030\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00030\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1776151580741</updated>\r\n    </task>\r\n    <option name=\"localTasksCounter\" value=\"31\" />\r\n    <servers />\r\n  </component>\r\n  <component name=\"VcsManagerConfiguration\">\r\n    <MESSAGE value=\"Home\" />\r\n    <MESSAGE value=\"broken file fix\" />\r\n    <MESSAGE value=\"3\" />\r\n    <option name=\"LAST_COMMIT_MESSAGE\" value=\"3\" />\r\n  </component>\r\n</project>
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/workspace.xml b/.idea/workspace.xml
+--- a/.idea/workspace.xml	(revision 251582ab168146b53d70e2bc2fa36726e1d0e01a)
++++ b/.idea/workspace.xml	(date 1777292332937)
+@@ -58,6 +58,7 @@
+     &quot;Python.Get_started.executor&quot;: &quot;Run&quot;,
+     &quot;Python.Syntx.executor&quot;: &quot;Run&quot;,
+     &quot;Python.args_kwargs.executor&quot;: &quot;Run&quot;,
++    &quot;Python.car.executor&quot;: &quot;Run&quot;,
+     &quot;Python.clock.executor&quot;: &quot;Run&quot;,
+     &quot;Python.clock_experiment.executor&quot;: &quot;Run&quot;,
+     &quot;Python.config (1).executor&quot;: &quot;Run&quot;,
+@@ -68,8 +69,11 @@
+     &quot;Python.data_types.executor&quot;: &quot;Run&quot;,
+     &quot;Python.functions_arguments_returnvalues.executor&quot;: &quot;Run&quot;,
+     &quot;Python.game.executor&quot;: &quot;Run&quot;,
++    &quot;Python.main (1).executor&quot;: &quot;Run&quot;,
++    &quot;Python.main.executor&quot;: &quot;Run&quot;,
+     &quot;Python.music_player_pygame.executor&quot;: &quot;Run&quot;,
+     &quot;Python.paint.executor&quot;: &quot;Run&quot;,
++    &quot;Python.paint_upd.executor&quot;: &quot;Run&quot;,
+     &quot;Python.phonebook (1).executor&quot;: &quot;Run&quot;,
+     &quot;Python.phonebook.executor&quot;: &quot;Run&quot;,
+     &quot;Python.test.executor&quot;: &quot;Run&quot;,
+@@ -80,7 +84,7 @@
+     &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
+     &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+     &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+-    &quot;last_opened_file_path&quot;: &quot;C:/Users/defX7/Desktop/Laptop/PythonProject/practice9/MusicPlayer/music&quot;,
++    &quot;last_opened_file_path&quot;: &quot;C:/Users/defX7/Desktop/Laptop/PythonProject/practice10&quot;,
+     &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;,
+     &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;
+   },
+@@ -94,20 +98,22 @@
+ }</component>
+   <component name="RecentsManager">
+     <key name="CopyFile.RECENT_KEYS">
++      <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\practice10" />
++      <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\TSIS" />
+       <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\practice9\MusicPlayer\music" />
+       <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\practice9\MusicPlayer" />
+       <recent name="C:\Users\misti\PycharmProjects\PP2\pracrice5" />
+     </key>
+     <key name="MoveFile.RECENT_KEYS">
++      <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\practice11" />
++      <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\TSIS\TSIS1" />
+       <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\practice9\MusicPlayer\music" />
+       <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\practice9\clock" />
+       <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\practice3" />
+-      <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\practice3\functions" />
+-      <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject" />
+     </key>
+   </component>
+-  <component name="RunManager" selected="Python.paint">
+-    <configuration name="clock" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
++  <component name="RunManager" selected="Python.main">
++    <configuration name="car" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+       <module name="PythonProject" />
+       <option name="ENV_FILES" value="" />
+       <option name="INTERPRETER_OPTIONS" value="" />
+@@ -116,11 +122,11 @@
+         <env name="PYTHONUNBUFFERED" value="1" />
+       </envs>
+       <option name="SDK_HOME" value="" />
+-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/practice9/clock" />
++      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/TSIS/TSIS3" />
+       <option name="IS_MODULE_SDK" value="true" />
+       <option name="ADD_CONTENT_ROOTS" value="true" />
+       <option name="ADD_SOURCE_ROOTS" value="true" />
+-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/practice9/clock/clock.py" />
++      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/TSIS/TSIS3/car.py" />
+       <option name="PARAMETERS" value="" />
+       <option name="SHOW_COMMAND_LINE" value="false" />
+       <option name="EMULATE_TERMINAL" value="false" />
+@@ -129,7 +135,7 @@
+       <option name="INPUT_FILE" value="" />
+       <method v="2" />
+     </configuration>
+-    <configuration name="clock_experiment" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
++    <configuration name="main (1)" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+       <module name="PythonProject" />
+       <option name="ENV_FILES" value="" />
+       <option name="INTERPRETER_OPTIONS" value="" />
+@@ -138,11 +144,11 @@
+         <env name="PYTHONUNBUFFERED" value="1" />
+       </envs>
+       <option name="SDK_HOME" value="" />
+-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/practice9/clock" />
++      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/practice11/snake" />
+       <option name="IS_MODULE_SDK" value="true" />
+       <option name="ADD_CONTENT_ROOTS" value="true" />
+       <option name="ADD_SOURCE_ROOTS" value="true" />
+-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/practice9/clock/clock_experiment.py" />
++      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/practice11/snake/main.py" />
+       <option name="PARAMETERS" value="" />
+       <option name="SHOW_COMMAND_LINE" value="false" />
+       <option name="EMULATE_TERMINAL" value="false" />
+@@ -151,7 +157,7 @@
+       <option name="INPUT_FILE" value="" />
+       <method v="2" />
+     </configuration>
+-    <configuration name="game" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
++    <configuration name="main" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+       <module name="PythonProject" />
+       <option name="ENV_FILES" value="" />
+       <option name="INTERPRETER_OPTIONS" value="" />
+@@ -160,11 +166,11 @@
+         <env name="PYTHONUNBUFFERED" value="1" />
+       </envs>
+       <option name="SDK_HOME" value="" />
+-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/practice9/moving ball" />
++      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/TSIS/TSIS4" />
+       <option name="IS_MODULE_SDK" value="true" />
+       <option name="ADD_CONTENT_ROOTS" value="true" />
+       <option name="ADD_SOURCE_ROOTS" value="true" />
+-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/practice9/moving ball/game.py" />
++      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/TSIS/TSIS4/main.py" />
+       <option name="PARAMETERS" value="" />
+       <option name="SHOW_COMMAND_LINE" value="false" />
+       <option name="EMULATE_TERMINAL" value="false" />
+@@ -173,7 +179,7 @@
+       <option name="INPUT_FILE" value="" />
+       <method v="2" />
+     </configuration>
+-    <configuration name="music_player_pygame" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
++    <configuration name="paint_upd" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+       <module name="PythonProject" />
+       <option name="ENV_FILES" value="" />
+       <option name="INTERPRETER_OPTIONS" value="" />
+@@ -182,11 +188,11 @@
+         <env name="PYTHONUNBUFFERED" value="1" />
+       </envs>
+       <option name="SDK_HOME" value="" />
+-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/practice9/MusicPlayer" />
++      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/TSIS/TSIS2" />
+       <option name="IS_MODULE_SDK" value="true" />
+       <option name="ADD_CONTENT_ROOTS" value="true" />
+       <option name="ADD_SOURCE_ROOTS" value="true" />
+-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/practice9/MusicPlayer/music_player_pygame.py" />
++      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/TSIS/TSIS2/paint_upd.py" />
+       <option name="PARAMETERS" value="" />
+       <option name="SHOW_COMMAND_LINE" value="false" />
+       <option name="EMULATE_TERMINAL" value="false" />
+@@ -195,7 +201,7 @@
+       <option name="INPUT_FILE" value="" />
+       <method v="2" />
+     </configuration>
+-    <configuration name="paint" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
++    <configuration name="phonebook" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+       <module name="PythonProject" />
+       <option name="ENV_FILES" value="" />
+       <option name="INTERPRETER_OPTIONS" value="" />
+@@ -204,11 +210,11 @@
+         <env name="PYTHONUNBUFFERED" value="1" />
+       </envs>
+       <option name="SDK_HOME" value="" />
+-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/practice10" />
++      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/TSIS/TSIS1" />
+       <option name="IS_MODULE_SDK" value="true" />
+       <option name="ADD_CONTENT_ROOTS" value="true" />
+       <option name="ADD_SOURCE_ROOTS" value="true" />
+-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/practice10/paint.py" />
++      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/TSIS/TSIS1/phonebook.py" />
+       <option name="PARAMETERS" value="" />
+       <option name="SHOW_COMMAND_LINE" value="false" />
+       <option name="EMULATE_TERMINAL" value="false" />
+@@ -219,11 +225,11 @@
+     </configuration>
+     <recent_temporary>
+       <list>
+-        <item itemvalue="Python.paint" />
+-        <item itemvalue="Python.game" />
+-        <item itemvalue="Python.clock_experiment" />
+-        <item itemvalue="Python.music_player_pygame" />
+-        <item itemvalue="Python.clock" />
++        <item itemvalue="Python.main" />
++        <item itemvalue="Python.paint_upd" />
++        <item itemvalue="Python.car" />
++        <item itemvalue="Python.main (1)" />
++        <item itemvalue="Python.phonebook" />
+       </list>
+     </recent_temporary>
+   </component>
+@@ -482,7 +488,31 @@
+       <option name="project" value="LOCAL" />
+       <updated>1776151580741</updated>
+     </task>
+-    <option name="localTasksCounter" value="31" />
++    <task id="LOCAL-00031" summary="3">
++      <option name="closed" value="true" />
++      <created>1776152823564</created>
++      <option name="number" value="00031" />
++      <option name="presentableId" value="LOCAL-00031" />
++      <option name="project" value="LOCAL" />
++      <updated>1776152823564</updated>
++    </task>
++    <task id="LOCAL-00032" summary="3">
++      <option name="closed" value="true" />
++      <created>1776699097285</created>
++      <option name="number" value="00032" />
++      <option name="presentableId" value="LOCAL-00032" />
++      <option name="project" value="LOCAL" />
++      <updated>1776699097285</updated>
++    </task>
++    <task id="LOCAL-00033" summary="3">
++      <option name="closed" value="true" />
++      <created>1776699236501</created>
++      <option name="number" value="00033" />
++      <option name="presentableId" value="LOCAL-00033" />
++      <option name="project" value="LOCAL" />
++      <updated>1776699236501</updated>
++    </task>
++    <option name="localTasksCounter" value="34" />
+     <servers />
+   </component>
+   <component name="VcsManagerConfiguration">
+@@ -491,4 +521,14 @@
+     <MESSAGE value="3" />
+     <option name="LAST_COMMIT_MESSAGE" value="3" />
+   </component>
++  <component name="XDebuggerManager">
++    <breakpoint-manager>
++      <breakpoints>
++        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
++          <url>file://$PROJECT_DIR$/TSIS/TSIS3/car.py</url>
++          <option name="timeStamp" value="1" />
++        </line-breakpoint>
++      </breakpoints>
++    </breakpoint-manager>
++  </component>
+ </project>
+\ No newline at end of file
+Index: TSIS/TSIS3/car.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import pygame\r\nimport random\r\nimport json\r\nimport os\r\nimport sys\r\nfrom datetime import datetime\r\n\r\npygame.init()\r\npygame.font.init()\r\n\r\nWIDTH, HEIGHT = 480, 720\r\nSCREEN = pygame.display.set_mode((WIDTH, HEIGHT))\r\npygame.display.set_caption(\"TSIS 3 Racer Game\")\r\nCLOCK = pygame.time.Clock()\r\nFPS = 60\r\n\r\nWHITE = (255, 255, 255)\r\nBLACK = (20, 20, 20)\r\nGRAY = (120, 120, 120)\r\nLIGHT_GRAY = (200, 200, 200)\r\nRED = (220, 60, 60)\r\nGREEN = (60, 200, 100)\r\nBLUE = (70, 140, 255)\r\nYELLOW = (240, 210, 70)\r\nORANGE = (255, 150, 50)\r\nPURPLE = (170, 90, 220)\r\nCYAN = (70, 220, 220)\r\nBG = (35, 35, 35)\r\nROAD = (70, 70, 70)\r\nROAD_LINE = (240, 240, 240)\r\nBARRIER = (190, 80, 80)\r\nOIL = (30, 30, 30)\r\nPOTHOLE = (100, 70, 50)\r\nSLOW = (80, 140, 255)\r\n\r\nFONT_BIG = pygame.font.SysFont(\"arial\", 42, bold=True)\r\nFONT_MED = pygame.font.SysFont(\"arial\", 28, bold=True)\r\nFONT_SMALL = pygame.font.SysFont(\"arial\", 20)\r\nFONT_TINY = pygame.font.SysFont(\"arial\", 16)\r\n\r\nSETTINGS_FILE = \"settings.json\"\r\nLEADERBOARD_FILE = \"leaderboard.json\"\r\n\r\nDEFAULT_SETTINGS = {\r\n    \"sound\": True,\r\n    \"car_color\": \"red\",\r\n    \"difficulty\": \"normal\"\r\n}\r\n\r\nDIFFICULTY_PRESETS = {\r\n    \"easy\": {\"speed_mul\": 0.9, \"traffic_mul\": 0.8, \"obstacle_mul\": 0.8},\r\n    \"normal\": {\"speed_mul\": 1.0, \"traffic_mul\": 1.0, \"obstacle_mul\": 1.0},\r\n    \"hard\": {\"speed_mul\": 1.15, \"traffic_mul\": 1.2, \"obstacle_mul\": 1.25},\r\n}\r\n\r\nCAR_COLORS = {\r\n    \"red\": RED,\r\n    \"blue\": BLUE,\r\n    \"green\": GREEN,\r\n    \"yellow\": YELLOW\r\n}\r\n\r\nSTATE_MAIN_MENU = \"MAIN_MENU\"\r\nSTATE_USERNAME = \"USERNAME\"\r\nSTATE_SETTINGS = \"SETTINGS\"\r\nSTATE_LEADERBOARD = \"LEADERBOARD\"\r\nSTATE_PLAYING = \"PLAYING\"\r\nSTATE_GAME_OVER = \"GAME_OVER\"\r\n\r\nLANE_COUNT = 3\r\nROAD_MARGIN = 70\r\nROAD_WIDTH = WIDTH - ROAD_MARGIN * 2\r\nLANE_WIDTH = ROAD_WIDTH // LANE_COUNT\r\nLANE_X = [ROAD_MARGIN + i * LANE_WIDTH + LANE_WIDTH // 2 for i in range(LANE_COUNT)]\r\n\r\nFINISH_DISTANCE = 5000\r\nSAFE_SPAWN_DISTANCE = 260\r\nMIN_VERTICAL_GAP = 130\r\n\r\n\r\ndef load_json(path, default_data):\r\n    if not os.path.exists(path):\r\n        with open(path, \"w\", encoding=\"utf-8\") as f:\r\n            json.dump(default_data, f, indent=4)\r\n        return default_data\r\n    try:\r\n        with open(path, \"r\", encoding=\"utf-8\") as f:\r\n            return json.load(f)\r\n    except:\r\n        with open(path, \"w\", encoding=\"utf-8\") as f:\r\n            json.dump(default_data, f, indent=4)\r\n        return default_data\r\n\r\n\r\ndef save_json(path, data):\r\n    with open(path, \"w\", encoding=\"utf-8\") as f:\r\n        json.dump(data, f, indent=4)\r\n\r\n\r\ndef load_settings():\r\n    return load_json(SETTINGS_FILE, DEFAULT_SETTINGS.copy())\r\n\r\n\r\ndef save_settings(settings):\r\n    save_json(SETTINGS_FILE, settings)\r\n\r\n\r\ndef load_leaderboard():\r\n    return load_json(LEADERBOARD_FILE, [])\r\n\r\n\r\ndef save_leaderboard(entries):\r\n    save_json(LEADERBOARD_FILE, entries)\r\n\r\n\r\ndef add_score_to_leaderboard(name, score, distance, coins):\r\n    data = load_leaderboard()\r\n    data.append({\r\n        \"name\": name,\r\n        \"score\": int(score),\r\n        \"distance\": int(distance),\r\n        \"coins\": int(coins),\r\n        \"date\": datetime.now().strftime(\"%Y-%m-%d %H:%M\")\r\n    })\r\n    data.sort(key=lambda x: (x[\"score\"], x[\"distance\"]), reverse=True)\r\n    data = data[:10]\r\n    save_leaderboard(data)\r\n\r\n\r\ndef draw_text(text, font, color, surface, x, y, center=False):\r\n    img = font.render(str(text), True, color)\r\n    rect = img.get_rect()\r\n    if center:\r\n        rect.center = (x, y)\r\n    else:\r\n        rect.topleft = (x, y)\r\n    surface.blit(img, rect)\r\n\r\n\r\nclass Button:\r\n    def __init__(self, x, y, w, h, text, bg=GRAY, hover=LIGHT_GRAY, fg=WHITE):\r\n        self.rect = pygame.Rect(x, y, w, h)\r\n        self.text = text\r\n        self.bg = bg\r\n        self.hover = hover\r\n        self.fg = fg\r\n\r\n    def draw(self, surface):\r\n        mouse = pygame.mouse.get_pos()\r\n        color = self.hover if self.rect.collidepoint(mouse) else self.bg\r\n        pygame.draw.rect(surface, color, self.rect, border_radius=12)\r\n        pygame.draw.rect(surface, WHITE, self.rect, 2, border_radius=12)\r\n        draw_text(self.text, FONT_SMALL, self.fg, surface, self.rect.centerx, self.rect.centery, center=True)\r\n\r\n    def clicked(self, event):\r\n        return event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and self.rect.collidepoint(event.pos)\r\n\r\n\r\nclass PlayerCar:\r\n    def __init__(self, color_name):\r\n        self.width = 48\r\n        self.height = 88\r\n        self.lane = 1\r\n        self.x = LANE_X[self.lane] - self.width // 2\r\n        self.y = HEIGHT - 130\r\n        self.color_name = color_name\r\n        self.color = CAR_COLORS[color_name]\r\n        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)\r\n        self.move_cooldown = 0\r\n        self.drift_timer = 0\r\n\r\n    def set_color(self, color_name):\r\n        self.color_name = color_name\r\n        self.color = CAR_COLORS[color_name]\r\n\r\n    def move_left(self):\r\n        if self.lane > 0:\r\n            self.lane -= 1\r\n            self.x = LANE_X[self.lane] - self.width // 2\r\n\r\n    def move_right(self):\r\n        if self.lane < LANE_COUNT - 1:\r\n            self.lane += 1\r\n            self.x = LANE_X[self.lane] - self.width // 2\r\n\r\n    def update(self):\r\n        self.rect.topleft = (self.x, self.y)\r\n        if self.move_cooldown > 0:\r\n            self.move_cooldown -= 1\r\n        if self.drift_timer > 0:\r\n            self.drift_timer -= 1\r\n\r\n    def draw(self, surface):\r\n        body = pygame.Rect(self.x, self.y, self.width, self.height)\r\n        pygame.draw.rect(surface, self.color, body, border_radius=10)\r\n        pygame.draw.rect(surface, WHITE, body, 2, border_radius=10)\r\n        pygame.draw.rect(surface, CYAN, (self.x + 8, self.y + 10, self.width - 16, 18), border_radius=6)\r\n        pygame.draw.circle(surface, BLACK, (self.x + 10, self.y + 16), 6)\r\n        pygame.draw.circle(surface, BLACK, (self.x + self.width - 10, self.y + 16), 6)\r\n        pygame.draw.circle(surface, BLACK, (self.x + 10, self.y + self.height - 14), 6)\r\n        pygame.draw.circle(surface, BLACK, (self.x + self.width - 10, self.y + self.height - 14), 6)\r\n\r\n\r\nclass TrafficCar:\r\n    def __init__(self, lane, speed):\r\n        self.width = 46\r\n        self.height = 84\r\n        self.lane = lane\r\n        self.x = LANE_X[lane] - self.width // 2\r\n        self.y = -self.height - random.randint(20, 120)\r\n        self.speed = speed\r\n        self.color = random.choice([BLUE, GREEN, YELLOW, ORANGE, PURPLE])\r\n        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)\r\n\r\n    def update(self, road_speed):\r\n        self.y += self.speed + road_speed\r\n        self.rect.topleft = (self.x, self.y)\r\n\r\n    def draw(self, surface):\r\n        pygame.draw.rect(surface, self.color, self.rect, border_radius=10)\r\n        pygame.draw.rect(surface, WHITE, self.rect, 2, border_radius=10)\r\n        pygame.draw.rect(surface, CYAN, (self.x + 8, self.y + 10, self.width - 16, 16), border_radius=5)\r\n\r\n\r\nclass Obstacle:\r\n    def __init__(self, lane, kind, speed):\r\n        self.lane = lane\r\n        self.kind = kind\r\n        self.speed = speed\r\n        self.width = 52 if kind in (\"barrier\", \"slow_zone\") else 42\r\n        self.height = 28 if kind in (\"oil\", \"pothole\") else 36\r\n        self.x = LANE_X[lane] - self.width // 2\r\n        self.y = -self.height - random.randint(20, 120)\r\n        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)\r\n\r\n    def update(self, road_speed):\r\n        self.y += self.speed + road_speed\r\n        self.rect.topleft = (self.x, self.y)\r\n\r\n    def draw(self, surface):\r\n        if self.kind == \"barrier\":\r\n            pygame.draw.rect(surface, BARRIER, self.rect, border_radius=6)\r\n            pygame.draw.rect(surface, WHITE, self.rect, 2, border_radius=6)\r\n        elif self.kind == \"oil\":\r\n            pygame.draw.ellipse(surface, OIL, self.rect)\r\n            pygame.draw.ellipse(surface, LIGHT_GRAY, self.rect, 2)\r\n        elif self.kind == \"pothole\":\r\n            pygame.draw.ellipse(surface, POTHOLE, self.rect)\r\n            pygame.draw.ellipse(surface, BLACK, self.rect, 2)\r\n        elif self.kind == \"slow_zone\":\r\n            pygame.draw.rect(surface, SLOW, self.rect, border_radius=6)\r\n            pygame.draw.rect(surface, WHITE, self.rect, 2, border_radius=6)\r\n\r\n\r\nclass PowerUp:\r\n    def __init__(self, lane, ptype, speed):\r\n        self.lane = lane\r\n        self.type = ptype\r\n        self.speed = speed\r\n        self.size = 28\r\n        self.x = LANE_X[lane] - self.size // 2\r\n        self.y = -self.size - random.randint(20, 120)\r\n        self.rect = pygame.Rect(self.x, self.y, self.size, self.size)\r\n        self.life_ms = 7000\r\n        self.spawn_time = pygame.time.get_ticks()\r\n\r\n    def update(self, road_speed):\r\n        self.y += self.speed + road_speed\r\n        self.rect.topleft = (self.x, self.y)\r\n\r\n    def expired(self):\r\n        return pygame.time.get_ticks() - self.spawn_time > self.life_ms\r\n\r\n    def draw(self, surface):\r\n        color = {\"nitro\": ORANGE, \"shield\": CYAN, \"repair\": GREEN}[self.type]\r\n        pygame.draw.circle(surface, color, self.rect.center, self.size // 2)\r\n        pygame.draw.circle(surface, WHITE, self.rect.center, self.size // 2, 2)\r\n        label = {\"nitro\": \"N\", \"shield\": \"S\", \"repair\": \"R\"}[self.type]\r\n        draw_text(label, FONT_SMALL, BLACK, surface, self.rect.centerx, self.rect.centery, center=True)\r\n\r\n\r\nclass RoadEvent:\r\n    def __init__(self, etype, lane, speed):\r\n        self.type = etype\r\n        self.lane = lane\r\n        self.speed = speed\r\n        self.finished = False\r\n        if etype == \"moving_barrier\":\r\n            self.width = 50\r\n            self.height = 26\r\n            self.x = LANE_X[lane] - self.width // 2\r\n            self.y = -60\r\n            self.direction = random.choice([-1, 1])\r\n            self.rect = pygame.Rect(self.x, self.y, self.width, self.height)\r\n        elif etype == \"speed_bump\":\r\n            self.width = LANE_WIDTH - 14\r\n            self.height = 16\r\n            self.x = LANE_X[lane] - self.width // 2\r\n            self.y = -40\r\n            self.rect = pygame.Rect(self.x, self.y, self.width, self.height)\r\n        else:  # nitro_strip\r\n            self.width = LANE_WIDTH - 18\r\n            self.height = 70\r\n            self.x = LANE_X[lane] - self.width // 2\r\n            self.y = -100\r\n            self.rect = pygame.Rect(self.x, self.y, self.width, self.height)\r\n\r\n    def update(self, road_speed):\r\n        self.y += self.speed + road_speed\r\n        if self.type == \"moving_barrier\":\r\n            self.x += self.direction * 2.2\r\n            left_limit = ROAD_MARGIN\r\n            right_limit = ROAD_MARGIN + ROAD_WIDTH - self.width\r\n            if self.x <= left_limit or self.x >= right_limit:\r\n                self.direction *= -1\r\n        self.rect.topleft = (self.x, self.y)\r\n\r\n    def draw(self, surface):\r\n        if self.type == \"moving_barrier\":\r\n            pygame.draw.rect(surface, PURPLE, self.rect, border_radius=5)\r\n            pygame.draw.rect(surface, WHITE, self.rect, 2, border_radius=5)\r\n        elif self.type == \"speed_bump\":\r\n            pygame.draw.rect(surface, YELLOW, self.rect, border_radius=4)\r\n            pygame.draw.rect(surface, BLACK, self.rect, 2, border_radius=4)\r\n        elif self.type == \"nitro_strip\":\r\n            pygame.draw.rect(surface, ORANGE, self.rect, border_radius=4)\r\n            for i in range(4):\r\n                pygame.draw.line(surface, WHITE, (self.x + 6, self.y + 10 + i * 14), (self.x + self.width - 6, self.y + 10 + i * 14), 2)\r\n\r\n\r\nclass Game:\r\n    def __init__(self):\r\n        self.settings = load_settings()\r\n        self.running = True\r\n        self.state = STATE_MAIN_MENU\r\n        self.username = \"\"\r\n        self.road_offset = 0\r\n        self.leaderboard_saved = False\r\n\r\n        self.menu_buttons = [\r\n            Button(WIDTH // 2 - 100, 260, 200, 55, \"Play\"),\r\n            Button(WIDTH // 2 - 100, 330, 200, 55, \"Leaderboard\"),\r\n            Button(WIDTH // 2 - 100, 400, 200, 55, \"Settings\"),\r\n            Button(WIDTH // 2 - 100, 470, 200, 55, \"Quit\"),\r\n        ]\r\n\r\n        self.back_button = Button(20, 20, 110, 45, \"Back\")\r\n        self.retry_button = Button(WIDTH // 2 - 100, 470, 200, 55, \"Retry\")\r\n        self.main_menu_button = Button(WIDTH // 2 - 100, 540, 200, 55, \"Main Menu\")\r\n\r\n        self.sound_button = Button(WIDTH // 2 - 100, 220, 200, 50, \"\")\r\n        self.color_button = Button(WIDTH // 2 - 100, 300, 200, 50, \"\")\r\n        self.diff_button = Button(WIDTH // 2 - 100, 380, 200, 50, \"\")\r\n        self.settings_back_button = Button(WIDTH // 2 - 100, 470, 200, 55, \"Back\")\r\n\r\n        self.start_run()\r\n\r\n    def start_run(self):\r\n        self.player = PlayerCar(self.settings[\"car_color\"])\r\n        self.score = 0\r\n        self.coins = 0\r\n        self.distance = 0\r\n        self.base_speed = 5.0 * DIFFICULTY_PRESETS[self.settings[\"difficulty\"]][\"speed_mul\"]\r\n        self.road_speed = self.base_speed\r\n        self.game_over = False\r\n        self.shield_active = False\r\n        self.repair_count = 0\r\n        self.active_powerup = None\r\n        self.powerup_end_time = 0\r\n        self.slow_timer = 0\r\n        self.traffic = []\r\n        self.obstacles = []\r\n        self.powerups = []\r\n        self.road_events = []\r\n        self.coin_items = []\r\n        self.spawn_traffic_timer = 0\r\n        self.spawn_obstacle_timer = 0\r\n        self.spawn_powerup_timer = 0\r\n        self.spawn_event_timer = 0\r\n        self.leaderboard_saved = False\r\n\r\n    def get_level(self):\r\n        return 1 + int(self.distance // 500)\r\n\r\n    def get_player_rect(self):\r\n        return self.player.rect\r\n\r\n    def can_spawn_lane(self, lane, new_y, objects):\r\n        if lane == self.player.lane and new_y > -SAFE_SPAWN_DISTANCE:\r\n            return False\r\n        for obj in objects:\r\n            if hasattr(obj, \"lane\") and obj.lane == lane and abs(obj.y - new_y) < MIN_VERTICAL_GAP:\r\n                return False\r\n        return True\r\n\r\n    def choose_safe_lane(self, existing_objects):\r\n        lanes = list(range(LANE_COUNT))\r\n        random.shuffle(lanes)\r\n        for lane in lanes:\r\n            if self.can_spawn_lane(lane, -80, existing_objects):\r\n                return lane\r\n        return None\r\n\r\n    def spawn_traffic(self):\r\n        lane = self.choose_safe_lane(self.traffic + self.obstacles)\r\n        if lane is not None:\r\n            speed = random.uniform(1.0, 2.8) + self.get_level() * 0.15\r\n            self.traffic.append(TrafficCar(lane, speed))\r\n\r\n    def spawn_obstacle(self):\r\n        lane = self.choose_safe_lane(self.traffic + self.obstacles)\r\n        if lane is not None:\r\n            kind = random.choices(\r\n                [\"barrier\", \"oil\", \"pothole\", \"slow_zone\"],\r\n                weights=[30, 25, 25, 20],\r\n                k=1\r\n            )[0]\r\n            speed = random.uniform(0.7, 1.8)\r\n            self.obstacles.append(Obstacle(lane, kind, speed))\r\n\r\n    def spawn_powerup(self):\r\n        lane = self.choose_safe_lane(self.traffic + self.obstacles + self.powerups)\r\n        if lane is not None:\r\n            ptype = random.choice([\"nitro\", \"shield\", \"repair\"])\r\n            self.powerups.append(PowerUp(lane, ptype, 1.2))\r\n\r\n    def spawn_event(self):\r\n        etype = random.choice([\"moving_barrier\", \"speed_bump\", \"nitro_strip\"])\r\n        lane = random.randint(0, LANE_COUNT - 1)\r\n        self.road_events.append(RoadEvent(etype, lane, 1.2))\r\n\r\n    def apply_powerup(self, ptype):\r\n        if ptype == \"repair\":\r\n            self.repair_count = min(1, self.repair_count + 1)\r\n            self.score += 40\r\n            return\r\n\r\n        if self.active_powerup is not None:\r\n            return\r\n\r\n        self.active_powerup = ptype\r\n        if ptype == \"nitro\":\r\n            self.powerup_end_time = pygame.time.get_ticks() + random.randint(3000, 5000)\r\n        elif ptype == \"shield\":\r\n            self.shield_active = True\r\n            self.powerup_end_time = 0\r\n\r\n    def clear_active_powerup(self):\r\n        if self.active_powerup == \"nitro\":\r\n            self.road_speed = max(self.base_speed, self.road_speed)\r\n        self.active_powerup = None\r\n\r\n    def handle_crash(self, remove_obj=None):\r\n        if self.shield_active:\r\n            self.shield_active = False\r\n            self.active_powerup = None\r\n            self.score += 100\r\n            return False\r\n        if self.repair_count > 0:\r\n            self.repair_count -= 1\r\n            self.score += 50\r\n            return False\r\n        self.game_over = True\r\n        self.state = STATE_GAME_OVER\r\n        return True\r\n\r\n    def update_playing(self):\r\n        if self.game_over:\r\n            return\r\n\r\n        level = self.get_level()\r\n        diff = DIFFICULTY_PRESETS[self.settings[\"difficulty\"]]\r\n\r\n        self.base_speed = (5.0 + level * 0.18) * diff[\"speed_mul\"]\r\n        self.road_speed = self.base_speed\r\n\r\n        if self.slow_timer > 0:\r\n            self.slow_timer -= 1\r\n            self.road_speed *= 0.65\r\n\r\n        if self.active_powerup == \"nitro\":\r\n            if pygame.time.get_ticks() < self.powerup_end_time:\r\n                self.road_speed *= 1.75\r\n            else:\r\n                self.clear_active_powerup()\r\n\r\n        self.road_offset += self.road_speed\r\n        if self.road_offset >= 40:\r\n            self.road_offset = 0\r\n\r\n        self.distance += self.road_speed * 0.8\r\n        self.score = int(self.coins * 10 + self.distance * 0.5 + (100 if self.shield_active else 0) + self.repair_count * 40)\r\n\r\n        traffic_interval = max(28, int(70 / diff[\"traffic_mul\"] - level * 2))\r\n        obstacle_interval = max(35, int(90 / diff[\"obstacle_mul\"] - level * 2))\r\n        powerup_interval = 260\r\n        event_interval = max(180, 360 - level * 8)\r\n\r\n        self.spawn_traffic_timer += 1\r\n        self.spawn_obstacle_timer += 1\r\n        self.spawn_powerup_timer += 1\r\n        self.spawn_event_timer += 1\r\n\r\n        if self.spawn_traffic_timer >= traffic_interval:\r\n            self.spawn_traffic_timer = 0\r\n            if random.random() < 0.7:\r\n                self.spawn_traffic()\r\n\r\n        if self.spawn_obstacle_timer >= obstacle_interval:\r\n            self.spawn_obstacle_timer = 0\r\n            if random.random() < 0.75:\r\n                self.spawn_obstacle()\r\n\r\n        if self.spawn_powerup_timer >= powerup_interval:\r\n            self.spawn_powerup_timer = 0\r\n            if random.random() < 0.7:\r\n                self.spawn_powerup()\r\n\r\n        if self.spawn_event_timer >= event_interval:\r\n            self.spawn_event_timer = 0\r\n            if random.random() < 0.8:\r\n                self.spawn_event()\r\n\r\n        self.player.update()\r\n\r\n        for car in self.traffic[:]:\r\n            car.update(self.road_speed)\r\n            if car.y > HEIGHT + 100:\r\n                self.traffic.remove(car)\r\n\r\n        for obs in self.obstacles[:]:\r\n            obs.update(self.road_speed)\r\n            if obs.y > HEIGHT + 100:\r\n                self.obstacles.remove(obs)\r\n\r\n        for p in self.powerups[:]:\r\n            p.update(self.road_speed)\r\n            if p.y > HEIGHT + 100 or p.expired():\r\n                self.powerups.remove(p)\r\n\r\n        for e in self.road_events[:]:\r\n            e.update(self.road_speed)\r\n            if e.y > HEIGHT + 120:\r\n                self.road_events.remove(e)\r\n\r\n        for car in self.traffic[:]:\r\n            if self.player.rect.colliderect(car.rect):\r\n                crashed = self.handle_crash(car)\r\n                if not crashed and car in self.traffic:\r\n                    self.traffic.remove(car)\r\n\r\n        for obs in self.obstacles[:]:\r\n            if self.player.rect.colliderect(obs.rect):\r\n                if obs.kind == \"barrier\":\r\n                    crashed = self.handle_crash(obs)\r\n                    if not crashed and obs in self.obstacles:\r\n                        self.obstacles.remove(obs)\r\n                elif obs.kind == \"oil\":\r\n                    if self.player.move_cooldown == 0:\r\n                        if random.choice([True, False]) and self.player.lane > 0:\r\n                            self.player.move_left()\r\n                        elif self.player.lane < LANE_COUNT - 1:\r\n                            self.player.move_right()\r\n                        self.player.move_cooldown = 18\r\n                    if obs in self.obstacles:\r\n                        self.obstacles.remove(obs)\r\n                elif obs.kind == \"pothole\":\r\n                    self.slow_timer = max(self.slow_timer, 50)\r\n                    if obs in self.obstacles:\r\n                        self.obstacles.remove(obs)\r\n                elif obs.kind == \"slow_zone\":\r\n                    self.slow_timer = max(self.slow_timer, 90)\r\n                    if obs in self.obstacles:\r\n                        self.obstacles.remove(obs)\r\n\r\n        for p in self.powerups[:]:\r\n            if self.player.rect.colliderect(p.rect):\r\n                self.apply_powerup(p.type)\r\n                if p.type == \"nitro\":\r\n                    self.score += 35\r\n                elif p.type == \"shield\":\r\n                    self.score += 50\r\n                if p in self.powerups:\r\n                    self.powerups.remove(p)\r\n\r\n        for e in self.road_events[:]:\r\n            if self.player.rect.colliderect(e.rect):\r\n                if e.type == \"moving_barrier\":\r\n                    crashed = self.handle_crash(e)\r\n                    if not crashed and e in self.road_events:\r\n                        self.road_events.remove(e)\r\n                elif e.type == \"speed_bump\":\r\n                    self.slow_timer = max(self.slow_timer, 40)\r\n                elif e.type == \"nitro_strip\":\r\n                    if self.active_powerup is None:\r\n                        self.active_powerup = \"nitro\"\r\n                        self.powerup_end_time = pygame.time.get_ticks() + 3000\r\n\r\n        if self.distance >= FINISH_DISTANCE:\r\n            self.state = STATE_GAME_OVER\r\n            self.game_over = True\r\n\r\n        if self.state == STATE_GAME_OVER and not self.leaderboard_saved:\r\n            add_score_to_leaderboard(self.username if self.username.strip() else \"Player\", self.score, self.distance, self.coins)\r\n            self.leaderboard_saved = True\r\n\r\n    def draw_road(self):\r\n        SCREEN.fill(BG)\r\n        pygame.draw.rect(SCREEN, ROAD, (ROAD_MARGIN, 0, ROAD_WIDTH, HEIGHT))\r\n        pygame.draw.rect(SCREEN, WHITE, (ROAD_MARGIN - 4, 0, 4, HEIGHT))\r\n        pygame.draw.rect(SCREEN, WHITE, (ROAD_MARGIN + ROAD_WIDTH, 0, 4, HEIGHT))\r\n\r\n        for i in range(1, LANE_COUNT):\r\n            x = ROAD_MARGIN + i * LANE_WIDTH\r\n            for y in range(-40, HEIGHT, 80):\r\n                pygame.draw.rect(SCREEN, ROAD_LINE, (x - 4, y + int(self.road_offset), 8, 40), border_radius=3)\r\n\r\n    def draw_hud(self):\r\n        remaining = max(0, int(FINISH_DISTANCE - self.distance))\r\n        pygame.draw.rect(SCREEN, (0, 0, 0), (8, 8, 220, 132), border_radius=12)\r\n        pygame.draw.rect(SCREEN, WHITE, (8, 8, 220, 132), 2, border_radius=12)\r\n\r\n        draw_text(f\"Player: {self.username if self.username else 'Player'}\", FONT_TINY, WHITE, SCREEN, 18, 16)\r\n        draw_text(f\"Score: {int(self.score)}\", FONT_SMALL, WHITE, SCREEN, 18, 34)\r\n        draw_text(f\"Coins: {self.coins}\", FONT_SMALL, WHITE, SCREEN, 18, 58)\r\n        draw_text(f\"Distance: {int(self.distance)}\", FONT_SMALL, WHITE, SCREEN, 18, 82)\r\n        draw_text(f\"Remaining: {remaining}\", FONT_TINY, WHITE, SCREEN, 18, 108)\r\n\r\n        pygame.draw.rect(SCREEN, (0, 0, 0), (250, 8, 222, 132), border_radius=12)\r\n        pygame.draw.rect(SCREEN, WHITE, (250, 8, 222, 132), 2, border_radius=12)\r\n\r\n        active_text = \"None\"\r\n        if self.active_powerup == \"nitro\":\r\n            remain = max(0, (self.powerup_end_time - pygame.time.get_ticks()) // 1000 + 1)\r\n            active_text = f\"Nitro ({remain}s)\"\r\n        elif self.shield_active:\r\n            active_text = \"Shield\"\r\n        elif self.repair_count > 0:\r\n            active_text = f\"Repair x{self.repair_count}\"\r\n\r\n        draw_text(\"Power-Ups\", FONT_SMALL, WHITE, SCREEN, 260, 20)\r\n        draw_text(f\"Active: {active_text}\", FONT_TINY, WHITE, SCREEN, 260, 50)\r\n        draw_text(f\"Shield: {'ON' if self.shield_active else 'OFF'}\", FONT_TINY, WHITE, SCREEN, 260, 76)\r\n        draw_text(f\"Repair: {self.repair_count}\", FONT_TINY, WHITE, SCREEN, 260, 100)\r\n\r\n    def draw_main_menu(self):\r\n        SCREEN.fill((25, 25, 35))\r\n        draw_text(\"RACER GAME\", FONT_BIG, WHITE, SCREEN, WIDTH // 2, 120, center=True)\r\n        draw_text(\"TSIS 3\", FONT_MED, YELLOW, SCREEN, WIDTH // 2, 170, center=True)\r\n        for btn in self.menu_buttons:\r\n            btn.draw(SCREEN)\r\n\r\n    def draw_username_screen(self):\r\n        SCREEN.fill((25, 25, 35))\r\n        draw_text(\"Enter Username\", FONT_BIG, WHITE, SCREEN, WIDTH // 2, 170, center=True)\r\n        box = pygame.Rect(WIDTH // 2 - 150, 280, 300, 56)\r\n        pygame.draw.rect(SCREEN, WHITE, box, border_radius=10)\r\n        pygame.draw.rect(SCREEN, BLACK, box.inflate(-4, -4), border_radius=10)\r\n        draw_text(self.username if self.username else \"Type your name...\", FONT_SMALL, WHITE, SCREEN, box.x + 12, box.y + 15)\r\n        draw_text(\"Press ENTER to start\", FONT_SMALL, LIGHT_GRAY, SCREEN, WIDTH // 2, 390, center=True)\r\n        self.back_button.draw(SCREEN)\r\n\r\n    def draw_settings(self):\r\n        SCREEN.fill((30, 30, 40))\r\n        draw_text(\"Settings\", FONT_BIG, WHITE, SCREEN, WIDTH // 2, 120, center=True)\r\n\r\n        self.sound_button.text = f\"Sound: {'On' if self.settings['sound'] else 'Off'}\"\r\n        self.color_button.text = f\"Car Color: {self.settings['car_color'].title()}\"\r\n        self.diff_button.text = f\"Difficulty: {self.settings['difficulty'].title()}\"\r\n\r\n        self.sound_button.draw(SCREEN)\r\n        self.color_button.draw(SCREEN)\r\n        self.diff_button.draw(SCREEN)\r\n        self.settings_back_button.draw(SCREEN)\r\n\r\n    def draw_leaderboard(self):\r\n        SCREEN.fill((20, 30, 40))\r\n        draw_text(\"Top 10 Leaderboard\", FONT_MED, WHITE, SCREEN, WIDTH // 2, 60, center=True)\r\n        data = load_leaderboard()\r\n\r\n        headers = [\"#\", \"Name\", \"Score\", \"Dist\"]\r\n        x_positions = [35, 90, 250, 365]\r\n        for i, h in enumerate(headers):\r\n            draw_text(h, FONT_SMALL, YELLOW, SCREEN, x_positions[i], 110)\r\n\r\n        y = 150\r\n        if not data:\r\n            draw_text(\"No scores yet\", FONT_MED, LIGHT_GRAY, SCREEN, WIDTH // 2, HEIGHT // 2, center=True)\r\n        else:\r\n            for idx, item in enumerate(data, start=1):\r\n                draw_text(str(idx), FONT_SMALL, WHITE, SCREEN, x_positions[0], y)\r\n                draw_text(item[\"name\"][:10], FONT_SMALL, WHITE, SCREEN, x_positions[1], y)\r\n                draw_text(str(item[\"score\"]), FONT_SMALL, WHITE, SCREEN, x_positions[2], y)\r\n                draw_text(str(item[\"distance\"]), FONT_SMALL, WHITE, SCREEN, x_positions[3], y)\r\n                y += 42\r\n\r\n        self.back_button.draw(SCREEN)\r\n\r\n    def draw_game_over(self):\r\n        SCREEN.fill((30, 10, 10))\r\n        title = \"FINISH!\" if self.distance >= FINISH_DISTANCE else \"GAME OVER\"\r\n        draw_text(title, FONT_BIG, WHITE, SCREEN, WIDTH // 2, 150, center=True)\r\n        draw_text(f\"Player: {self.username if self.username else 'Player'}\", FONT_MED, YELLOW, SCREEN, WIDTH // 2, 240, center=True)\r\n        draw_text(f\"Score: {int(self.score)}\", FONT_SMALL, WHITE, SCREEN, WIDTH // 2, 300, center=True)\r\n        draw_text(f\"Distance: {int(self.distance)}\", FONT_SMALL, WHITE, SCREEN, WIDTH // 2, 340, center=True)\r\n        draw_text(f\"Coins: {self.coins}\", FONT_SMALL, WHITE, SCREEN, WIDTH // 2, 380, center=True)\r\n        self.retry_button.draw(SCREEN)\r\n        self.main_menu_button.draw(SCREEN)\r\n\r\n    def draw_playing(self):\r\n        self.draw_road()\r\n        for e in self.road_events:\r\n            e.draw(SCREEN)\r\n        for car in self.traffic:\r\n            car.draw(SCREEN)\r\n        for obs in self.obstacles:\r\n            obs.draw(SCREEN)\r\n        for p in self.powerups:\r\n            p.draw(SCREEN)\r\n        self.player.draw(SCREEN)\r\n        self.draw_hud()\r\n\r\n    def handle_main_menu_events(self, event):\r\n        if self.menu_buttons[0].clicked(event):\r\n            self.state = STATE_USERNAME\r\n        elif self.menu_buttons[1].clicked(event):\r\n            self.state = STATE_LEADERBOARD\r\n        elif self.menu_buttons[2].clicked(event):\r\n            self.state = STATE_SETTINGS\r\n        elif self.menu_buttons[3].clicked(event):\r\n            self.running = False\r\n\r\n    def handle_username_events(self, event):\r\n        if self.back_button.clicked(event):\r\n            self.state = STATE_MAIN_MENU\r\n\r\n        if event.type == pygame.KEYDOWN:\r\n            if event.key == pygame.K_RETURN:\r\n                if not self.username.strip():\r\n                    self.username = \"Player\"\r\n                self.start_run()\r\n                self.state = STATE_PLAYING\r\n            elif event.key == pygame.K_BACKSPACE:\r\n                self.username = self.username[:-1]\r\n            else:\r\n                if len(self.username) < 12 and event.unicode.isprintable():\r\n                    self.username += event.unicode\r\n\r\n    def handle_settings_events(self, event):\r\n        if self.sound_button.clicked(event):\r\n            self.settings[\"sound\"] = not self.settings[\"sound\"]\r\n            save_settings(self.settings)\r\n\r\n        elif self.color_button.clicked(event):\r\n            colors = list(CAR_COLORS.keys())\r\n            idx = colors.index(self.settings[\"car_color\"])\r\n            self.settings[\"car_color\"] = colors[(idx + 1) % len(colors)]\r\n            save_settings(self.settings)\r\n\r\n        elif self.diff_button.clicked(event):\r\n            diffs = list(DIFFICULTY_PRESETS.keys())\r\n            idx = diffs.index(self.settings[\"difficulty\"])\r\n            self.settings[\"difficulty\"] = diffs[(idx + 1) % len(diffs)]\r\n            save_settings(self.settings)\r\n\r\n        elif self.settings_back_button.clicked(event):\r\n            self.player.set_color(self.settings[\"car_color\"])\r\n            self.state = STATE_MAIN_MENU\r\n\r\n    def handle_leaderboard_events(self, event):\r\n        if self.back_button.clicked(event):\r\n            self.state = STATE_MAIN_MENU\r\n\r\n    def handle_game_over_events(self, event):\r\n        if self.retry_button.clicked(event):\r\n            self.start_run()\r\n            self.state = STATE_PLAYING\r\n        elif self.main_menu_button.clicked(event):\r\n            self.state = STATE_MAIN_MENU\r\n\r\n    def handle_playing_events(self, event):\r\n        if event.type == pygame.KEYDOWN:\r\n            if event.key == pygame.K_LEFT and self.player.move_cooldown == 0:\r\n                self.player.move_left()\r\n                self.player.move_cooldown = 8\r\n            elif event.key == pygame.K_RIGHT and self.player.move_cooldown == 0:\r\n                self.player.move_right()\r\n                self.player.move_cooldown = 8\r\n            elif event.key == pygame.K_ESCAPE:\r\n                self.state = STATE_MAIN_MENU\r\n\r\n    def events(self):\r\n        for event in pygame.event.get():\r\n            if event.type == pygame.QUIT:\r\n                self.running = False\r\n\r\n            if self.state == STATE_MAIN_MENU:\r\n                self.handle_main_menu_events(event)\r\n            elif self.state == STATE_USERNAME:\r\n                self.handle_username_events(event)\r\n            elif self.state == STATE_SETTINGS:\r\n                self.handle_settings_events(event)\r\n            elif self.state == STATE_LEADERBOARD:\r\n                self.handle_leaderboard_events(event)\r\n            elif self.state == STATE_PLAYING:\r\n                self.handle_playing_events(event)\r\n            elif self.state == STATE_GAME_OVER:\r\n                self.handle_game_over_events(event)\r\n\r\n    def update(self):\r\n        if self.state == STATE_PLAYING:\r\n            self.update_playing()\r\n\r\n    def draw(self):\r\n        if self.state == STATE_MAIN_MENU:\r\n            self.draw_main_menu()\r\n        elif self.state == STATE_USERNAME:\r\n            self.draw_username_screen()\r\n        elif self.state == STATE_SETTINGS:\r\n            self.draw_settings()\r\n        elif self.state == STATE_LEADERBOARD:\r\n            self.draw_leaderboard()\r\n        elif self.state == STATE_PLAYING:\r\n            self.draw_playing()\r\n        elif self.state == STATE_GAME_OVER:\r\n            self.draw_game_over()\r\n        pygame.display.flip()\r\n\r\n    def run(self):\r\n        while self.running:\r\n            CLOCK.tick(FPS)\r\n            self.events()\r\n            self.update()\r\n            self.draw()\r\n        pygame.quit()\r\n        sys.exit()\r\n\r\n\r\nif __name__ == \"__main__\":\r\n    game = Game()\r\n    game.run()
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/TSIS/TSIS3/car.py b/TSIS/TSIS3/car.py
+--- a/TSIS/TSIS3/car.py	(revision 251582ab168146b53d70e2bc2fa36726e1d0e01a)
++++ b/TSIS/TSIS3/car.py	(date 1776742896572)
+@@ -67,13 +67,13 @@
+ STATE_PLAYING = "PLAYING"
+ STATE_GAME_OVER = "GAME_OVER"
+ 
+-LANE_COUNT = 3
++LANE_COUNT = 5
+ ROAD_MARGIN = 70
+ ROAD_WIDTH = WIDTH - ROAD_MARGIN * 2
+ LANE_WIDTH = ROAD_WIDTH // LANE_COUNT
+ LANE_X = [ROAD_MARGIN + i * LANE_WIDTH + LANE_WIDTH // 2 for i in range(LANE_COUNT)]
+ 
+-FINISH_DISTANCE = 5000
++FINISH_DISTANCE = 10000
+ SAFE_SPAWN_DISTANCE = 260
+ MIN_VERTICAL_GAP = 130
+ 
+Index: practice10/car_game/leaderboard.json
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/practice10/car_game/leaderboard.json b/practice10/car_game/leaderboard.json
+new file mode 100644
+--- /dev/null	(date 1776697605851)
++++ b/practice10/car_game/leaderboard.json	(date 1776697605851)
+@@ -0,0 +1,23 @@
++[
++    {
++        "name": "korish lox",
++        "score": 2600,
++        "distance": 5000,
++        "coins": 0,
++        "date": "2026-04-20 20:06"
++    },
++    {
++        "name": "ihu",
++        "score": 821,
++        "distance": 1563,
++        "coins": 0,
++        "date": "2026-04-20 20:05"
++    },
++    {
++        "name": "korish lox",
++        "score": 390,
++        "distance": 780,
++        "coins": 0,
++        "date": "2026-04-20 20:06"
++    }
++]
+\ No newline at end of file
+Index: .idea/shelf/Uncommitted_changes_before_Update_at_13_04_2026_18_04__Changes_1.xml
+===================================================================
+diff --git a/.idea/shelf/Uncommitted_changes_before_Update_at_13_04_2026_18_04__Changes_1.xml b/.idea/shelf/Uncommitted_changes_before_Update_at_13_04_2026_18_04__Changes_1.xml
+deleted file mode 100644
+--- a/.idea/shelf/Uncommitted_changes_before_Update_at_13_04_2026_18_04__Changes_1.xml	(revision 251582ab168146b53d70e2bc2fa36726e1d0e01a)
++++ /dev/null	(revision 251582ab168146b53d70e2bc2fa36726e1d0e01a)
+@@ -1,16 +0,0 @@
+-<changelist name="Uncommitted_changes_before_Update_at_13_04_2026_18_04_[Changes]1" date="1776085456439" recycled="true" deleted="true">
+-  <option name="PATH" value="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Update_at_13_04_2026_18_04_[Changes]1/shelved.patch" />
+-  <option name="DESCRIPTION" value="Uncommitted changes before Update at 13.04.2026 18:04 [Changes]" />
+-  <binary>
+-    <option name="AFTER_PATH" value="test/123.jpg" />
+-    <option name="SHELVED_PATH" value="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Update_at_13_04_2026_18_04_[Changes]1/123.jpg" />
+-  </binary>
+-  <binary>
+-    <option name="AFTER_PATH" value="test/SF26.png" />
+-    <option name="SHELVED_PATH" value="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Update_at_13_04_2026_18_04_[Changes]1/SF26.png" />
+-  </binary>
+-  <binary>
+-    <option name="AFTER_PATH" value="test/img.png" />
+-    <option name="SHELVED_PATH" value="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Update_at_13_04_2026_18_04_[Changes]1/img.png" />
+-  </binary>
+-</changelist>
+\ No newline at end of file
+Index: practice10/car_game/car.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/practice10/car_game/car.py b/practice10/car_game/car.py
+new file mode 100644
+--- /dev/null	(date 1776697525844)
++++ b/practice10/car_game/car.py	(date 1776697525844)
+@@ -0,0 +1,841 @@
++import pygame
++import random
++import json
++import os
++import sys
++from datetime import datetime
++
++pygame.init()
++pygame.font.init()
++
++WIDTH, HEIGHT = 480, 720
++SCREEN = pygame.display.set_mode((WIDTH, HEIGHT))
++pygame.display.set_caption("TSIS 3 Racer Game")
++CLOCK = pygame.time.Clock()
++FPS = 60
++
++WHITE = (255, 255, 255)
++BLACK = (20, 20, 20)
++GRAY = (120, 120, 120)
++LIGHT_GRAY = (200, 200, 200)
++RED = (220, 60, 60)
++GREEN = (60, 200, 100)
++BLUE = (70, 140, 255)
++YELLOW = (240, 210, 70)
++ORANGE = (255, 150, 50)
++PURPLE = (170, 90, 220)
++CYAN = (70, 220, 220)
++BG = (35, 35, 35)
++ROAD = (70, 70, 70)
++ROAD_LINE = (240, 240, 240)
++BARRIER = (190, 80, 80)
++OIL = (30, 30, 30)
++POTHOLE = (100, 70, 50)
++SLOW = (80, 140, 255)
++
++FONT_BIG = pygame.font.SysFont("arial", 42, bold=True)
++FONT_MED = pygame.font.SysFont("arial", 28, bold=True)
++FONT_SMALL = pygame.font.SysFont("arial", 20)
++FONT_TINY = pygame.font.SysFont("arial", 16)
++
++SETTINGS_FILE = "settings.json"
++LEADERBOARD_FILE = "leaderboard.json"
++
++DEFAULT_SETTINGS = {
++    "sound": True,
++    "car_color": "red",
++    "difficulty": "normal"
++}
++
++DIFFICULTY_PRESETS = {
++    "easy": {"speed_mul": 0.9, "traffic_mul": 0.8, "obstacle_mul": 0.8},
++    "normal": {"speed_mul": 1.0, "traffic_mul": 1.0, "obstacle_mul": 1.0},
++    "hard": {"speed_mul": 1.15, "traffic_mul": 1.2, "obstacle_mul": 1.25},
++}
++
++CAR_COLORS = {
++    "red": RED,
++    "blue": BLUE,
++    "green": GREEN,
++    "yellow": YELLOW
++}
++
++STATE_MAIN_MENU = "MAIN_MENU"
++STATE_USERNAME = "USERNAME"
++STATE_SETTINGS = "SETTINGS"
++STATE_LEADERBOARD = "LEADERBOARD"
++STATE_PLAYING = "PLAYING"
++STATE_GAME_OVER = "GAME_OVER"
++
++LANE_COUNT = 3
++ROAD_MARGIN = 70
++ROAD_WIDTH = WIDTH - ROAD_MARGIN * 2
++LANE_WIDTH = ROAD_WIDTH // LANE_COUNT
++LANE_X = [ROAD_MARGIN + i * LANE_WIDTH + LANE_WIDTH // 2 for i in range(LANE_COUNT)]
++
++FINISH_DISTANCE = 5000
++SAFE_SPAWN_DISTANCE = 260
++MIN_VERTICAL_GAP = 130
++
++
++def load_json(path, default_data):
++    if not os.path.exists(path):
++        with open(path, "w", encoding="utf-8") as f:
++            json.dump(default_data, f, indent=4)
++        return default_data
++    try:
++        with open(path, "r", encoding="utf-8") as f:
++            return json.load(f)
++    except:
++        with open(path, "w", encoding="utf-8") as f:
++            json.dump(default_data, f, indent=4)
++        return default_data
++
++
++def save_json(path, data):
++    with open(path, "w", encoding="utf-8") as f:
++        json.dump(data, f, indent=4)
++
++
++def load_settings():
++    return load_json(SETTINGS_FILE, DEFAULT_SETTINGS.copy())
++
++
++def save_settings(settings):
++    save_json(SETTINGS_FILE, settings)
++
++
++def load_leaderboard():
++    return load_json(LEADERBOARD_FILE, [])
++
++
++def save_leaderboard(entries):
++    save_json(LEADERBOARD_FILE, entries)
++
++
++def add_score_to_leaderboard(name, score, distance, coins):
++    data = load_leaderboard()
++    data.append({
++        "name": name,
++        "score": int(score),
++        "distance": int(distance),
++        "coins": int(coins),
++        "date": datetime.now().strftime("%Y-%m-%d %H:%M")
++    })
++    data.sort(key=lambda x: (x["score"], x["distance"]), reverse=True)
++    data = data[:10]
++    save_leaderboard(data)
++
++
++def draw_text(text, font, color, surface, x, y, center=False):
++    img = font.render(str(text), True, color)
++    rect = img.get_rect()
++    if center:
++        rect.center = (x, y)
++    else:
++        rect.topleft = (x, y)
++    surface.blit(img, rect)
++
++
++class Button:
++    def __init__(self, x, y, w, h, text, bg=GRAY, hover=LIGHT_GRAY, fg=WHITE):
++        self.rect = pygame.Rect(x, y, w, h)
++        self.text = text
++        self.bg = bg
++        self.hover = hover
++        self.fg = fg
++
++    def draw(self, surface):
++        mouse = pygame.mouse.get_pos()
++        color = self.hover if self.rect.collidepoint(mouse) else self.bg
++        pygame.draw.rect(surface, color, self.rect, border_radius=12)
++        pygame.draw.rect(surface, WHITE, self.rect, 2, border_radius=12)
++        draw_text(self.text, FONT_SMALL, self.fg, surface, self.rect.centerx, self.rect.centery, center=True)
++
++    def clicked(self, event):
++        return event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and self.rect.collidepoint(event.pos)
++
++
++class PlayerCar:
++    def __init__(self, color_name):
++        self.width = 48
++        self.height = 88
++        self.lane = 1
++        self.x = LANE_X[self.lane] - self.width // 2
++        self.y = HEIGHT - 130
++        self.color_name = color_name
++        self.color = CAR_COLORS[color_name]
++        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
++        self.move_cooldown = 0
++        self.drift_timer = 0
++
++    def set_color(self, color_name):
++        self.color_name = color_name
++        self.color = CAR_COLORS[color_name]
++
++    def move_left(self):
++        if self.lane > 0:
++            self.lane -= 1
++            self.x = LANE_X[self.lane] - self.width // 2
++
++    def move_right(self):
++        if self.lane < LANE_COUNT - 1:
++            self.lane += 1
++            self.x = LANE_X[self.lane] - self.width // 2
++
++    def update(self):
++        self.rect.topleft = (self.x, self.y)
++        if self.move_cooldown > 0:
++            self.move_cooldown -= 1
++        if self.drift_timer > 0:
++            self.drift_timer -= 1
++
++    def draw(self, surface):
++        body = pygame.Rect(self.x, self.y, self.width, self.height)
++        pygame.draw.rect(surface, self.color, body, border_radius=10)
++        pygame.draw.rect(surface, WHITE, body, 2, border_radius=10)
++        pygame.draw.rect(surface, CYAN, (self.x + 8, self.y + 10, self.width - 16, 18), border_radius=6)
++        pygame.draw.circle(surface, BLACK, (self.x + 10, self.y + 16), 6)
++        pygame.draw.circle(surface, BLACK, (self.x + self.width - 10, self.y + 16), 6)
++        pygame.draw.circle(surface, BLACK, (self.x + 10, self.y + self.height - 14), 6)
++        pygame.draw.circle(surface, BLACK, (self.x + self.width - 10, self.y + self.height - 14), 6)
++
++
++class TrafficCar:
++    def __init__(self, lane, speed):
++        self.width = 46
++        self.height = 84
++        self.lane = lane
++        self.x = LANE_X[lane] - self.width // 2
++        self.y = -self.height - random.randint(20, 120)
++        self.speed = speed
++        self.color = random.choice([BLUE, GREEN, YELLOW, ORANGE, PURPLE])
++        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
++
++    def update(self, road_speed):
++        self.y += self.speed + road_speed
++        self.rect.topleft = (self.x, self.y)
++
++    def draw(self, surface):
++        pygame.draw.rect(surface, self.color, self.rect, border_radius=10)
++        pygame.draw.rect(surface, WHITE, self.rect, 2, border_radius=10)
++        pygame.draw.rect(surface, CYAN, (self.x + 8, self.y + 10, self.width - 16, 16), border_radius=5)
++
++
++class Obstacle:
++    def __init__(self, lane, kind, speed):
++        self.lane = lane
++        self.kind = kind
++        self.speed = speed
++        self.width = 52 if kind in ("barrier", "slow_zone") else 42
++        self.height = 28 if kind in ("oil", "pothole") else 36
++        self.x = LANE_X[lane] - self.width // 2
++        self.y = -self.height - random.randint(20, 120)
++        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
++
++    def update(self, road_speed):
++        self.y += self.speed + road_speed
++        self.rect.topleft = (self.x, self.y)
++
++    def draw(self, surface):
++        if self.kind == "barrier":
++            pygame.draw.rect(surface, BARRIER, self.rect, border_radius=6)
++            pygame.draw.rect(surface, WHITE, self.rect, 2, border_radius=6)
++        elif self.kind == "oil":
++            pygame.draw.ellipse(surface, OIL, self.rect)
++            pygame.draw.ellipse(surface, LIGHT_GRAY, self.rect, 2)
++        elif self.kind == "pothole":
++            pygame.draw.ellipse(surface, POTHOLE, self.rect)
++            pygame.draw.ellipse(surface, BLACK, self.rect, 2)
++        elif self.kind == "slow_zone":
++            pygame.draw.rect(surface, SLOW, self.rect, border_radius=6)
++            pygame.draw.rect(surface, WHITE, self.rect, 2, border_radius=6)
++
++
++class PowerUp:
++    def __init__(self, lane, ptype, speed):
++        self.lane = lane
++        self.type = ptype
++        self.speed = speed
++        self.size = 28
++        self.x = LANE_X[lane] - self.size // 2
++        self.y = -self.size - random.randint(20, 120)
++        self.rect = pygame.Rect(self.x, self.y, self.size, self.size)
++        self.life_ms = 7000
++        self.spawn_time = pygame.time.get_ticks()
++
++    def update(self, road_speed):
++        self.y += self.speed + road_speed
++        self.rect.topleft = (self.x, self.y)
++
++    def expired(self):
++        return pygame.time.get_ticks() - self.spawn_time > self.life_ms
++
++    def draw(self, surface):
++        color = {"nitro": ORANGE, "shield": CYAN, "repair": GREEN}[self.type]
++        pygame.draw.circle(surface, color, self.rect.center, self.size // 2)
++        pygame.draw.circle(surface, WHITE, self.rect.center, self.size // 2, 2)
++        label = {"nitro": "N", "shield": "S", "repair": "R"}[self.type]
++        draw_text(label, FONT_SMALL, BLACK, surface, self.rect.centerx, self.rect.centery, center=True)
++
++
++class RoadEvent:
++    def __init__(self, etype, lane, speed):
++        self.type = etype
++        self.lane = lane
++        self.speed = speed
++        self.finished = False
++        if etype == "moving_barrier":
++            self.width = 50
++            self.height = 26
++            self.x = LANE_X[lane] - self.width // 2
++            self.y = -60
++            self.direction = random.choice([-1, 1])
++            self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
++        elif etype == "speed_bump":
++            self.width = LANE_WIDTH - 14
++            self.height = 16
++            self.x = LANE_X[lane] - self.width // 2
++            self.y = -40
++            self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
++        else:  # nitro_strip
++            self.width = LANE_WIDTH - 18
++            self.height = 70
++            self.x = LANE_X[lane] - self.width // 2
++            self.y = -100
++            self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
++
++    def update(self, road_speed):
++        self.y += self.speed + road_speed
++        if self.type == "moving_barrier":
++            self.x += self.direction * 2.2
++            left_limit = ROAD_MARGIN
++            right_limit = ROAD_MARGIN + ROAD_WIDTH - self.width
++            if self.x <= left_limit or self.x >= right_limit:
++                self.direction *= -1
++        self.rect.topleft = (self.x, self.y)
++
++    def draw(self, surface):
++        if self.type == "moving_barrier":
++            pygame.draw.rect(surface, PURPLE, self.rect, border_radius=5)
++            pygame.draw.rect(surface, WHITE, self.rect, 2, border_radius=5)
++        elif self.type == "speed_bump":
++            pygame.draw.rect(surface, YELLOW, self.rect, border_radius=4)
++            pygame.draw.rect(surface, BLACK, self.rect, 2, border_radius=4)
++        elif self.type == "nitro_strip":
++            pygame.draw.rect(surface, ORANGE, self.rect, border_radius=4)
++            for i in range(4):
++                pygame.draw.line(surface, WHITE, (self.x + 6, self.y + 10 + i * 14), (self.x + self.width - 6, self.y + 10 + i * 14), 2)
++
++
++class Game:
++    def __init__(self):
++        self.settings = load_settings()
++        self.running = True
++        self.state = STATE_MAIN_MENU
++        self.username = ""
++        self.road_offset = 0
++        self.leaderboard_saved = False
++
++        self.menu_buttons = [
++            Button(WIDTH // 2 - 100, 260, 200, 55, "Play"),
++            Button(WIDTH // 2 - 100, 330, 200, 55, "Leaderboard"),
++            Button(WIDTH // 2 - 100, 400, 200, 55, "Settings"),
++            Button(WIDTH // 2 - 100, 470, 200, 55, "Quit"),
++        ]
++
++        self.back_button = Button(20, 20, 110, 45, "Back")
++        self.retry_button = Button(WIDTH // 2 - 100, 470, 200, 55, "Retry")
++        self.main_menu_button = Button(WIDTH // 2 - 100, 540, 200, 55, "Main Menu")
++
++        self.sound_button = Button(WIDTH // 2 - 100, 220, 200, 50, "")
++        self.color_button = Button(WIDTH // 2 - 100, 300, 200, 50, "")
++        self.diff_button = Button(WIDTH // 2 - 100, 380, 200, 50, "")
++        self.settings_back_button = Button(WIDTH // 2 - 100, 470, 200, 55, "Back")
++
++        self.start_run()
++
++    def start_run(self):
++        self.player = PlayerCar(self.settings["car_color"])
++        self.score = 0
++        self.coins = 0
++        self.distance = 0
++        self.base_speed = 5.0 * DIFFICULTY_PRESETS[self.settings["difficulty"]]["speed_mul"]
++        self.road_speed = self.base_speed
++        self.game_over = False
++        self.shield_active = False
++        self.repair_count = 0
++        self.active_powerup = None
++        self.powerup_end_time = 0
++        self.slow_timer = 0
++        self.traffic = []
++        self.obstacles = []
++        self.powerups = []
++        self.road_events = []
++        self.coin_items = []
++        self.spawn_traffic_timer = 0
++        self.spawn_obstacle_timer = 0
++        self.spawn_powerup_timer = 0
++        self.spawn_event_timer = 0
++        self.leaderboard_saved = False
++
++    def get_level(self):
++        return 1 + int(self.distance // 500)
++
++    def get_player_rect(self):
++        return self.player.rect
++
++    def can_spawn_lane(self, lane, new_y, objects):
++        if lane == self.player.lane and new_y > -SAFE_SPAWN_DISTANCE:
++            return False
++        for obj in objects:
++            if hasattr(obj, "lane") and obj.lane == lane and abs(obj.y - new_y) < MIN_VERTICAL_GAP:
++                return False
++        return True
++
++    def choose_safe_lane(self, existing_objects):
++        lanes = list(range(LANE_COUNT))
++        random.shuffle(lanes)
++        for lane in lanes:
++            if self.can_spawn_lane(lane, -80, existing_objects):
++                return lane
++        return None
++
++    def spawn_traffic(self):
++        lane = self.choose_safe_lane(self.traffic + self.obstacles)
++        if lane is not None:
++            speed = random.uniform(1.0, 2.8) + self.get_level() * 0.15
++            self.traffic.append(TrafficCar(lane, speed))
++
++    def spawn_obstacle(self):
++        lane = self.choose_safe_lane(self.traffic + self.obstacles)
++        if lane is not None:
++            kind = random.choices(
++                ["barrier", "oil", "pothole", "slow_zone"],
++                weights=[30, 25, 25, 20],
++                k=1
++            )[0]
++            speed = random.uniform(0.7, 1.8)
++            self.obstacles.append(Obstacle(lane, kind, speed))
++
++    def spawn_powerup(self):
++        lane = self.choose_safe_lane(self.traffic + self.obstacles + self.powerups)
++        if lane is not None:
++            ptype = random.choice(["nitro", "shield", "repair"])
++            self.powerups.append(PowerUp(lane, ptype, 1.2))
++
++    def spawn_event(self):
++        etype = random.choice(["moving_barrier", "speed_bump", "nitro_strip"])
++        lane = random.randint(0, LANE_COUNT - 1)
++        self.road_events.append(RoadEvent(etype, lane, 1.2))
++
++    def apply_powerup(self, ptype):
++        if ptype == "repair":
++            self.repair_count = min(1, self.repair_count + 1)
++            self.score += 40
++            return
++
++        if self.active_powerup is not None:
++            return
++
++        self.active_powerup = ptype
++        if ptype == "nitro":
++            self.powerup_end_time = pygame.time.get_ticks() + random.randint(3000, 5000)
++        elif ptype == "shield":
++            self.shield_active = True
++            self.powerup_end_time = 0
++
++    def clear_active_powerup(self):
++        if self.active_powerup == "nitro":
++            self.road_speed = max(self.base_speed, self.road_speed)
++        self.active_powerup = None
++
++    def handle_crash(self, remove_obj=None):
++        if self.shield_active:
++            self.shield_active = False
++            self.active_powerup = None
++            self.score += 100
++            return False
++        if self.repair_count > 0:
++            self.repair_count -= 1
++            self.score += 50
++            return False
++        self.game_over = True
++        self.state = STATE_GAME_OVER
++        return True
++
++    def update_playing(self):
++        if self.game_over:
++            return
++
++        level = self.get_level()
++        diff = DIFFICULTY_PRESETS[self.settings["difficulty"]]
++
++        self.base_speed = (5.0 + level * 0.18) * diff["speed_mul"]
++        self.road_speed = self.base_speed
++
++        if self.slow_timer > 0:
++            self.slow_timer -= 1
++            self.road_speed *= 0.65
++
++        if self.active_powerup == "nitro":
++            if pygame.time.get_ticks() < self.powerup_end_time:
++                self.road_speed *= 1.75
++            else:
++                self.clear_active_powerup()
++
++        self.road_offset += self.road_speed
++        if self.road_offset >= 40:
++            self.road_offset = 0
++
++        self.distance += self.road_speed * 0.8
++        self.score = int(self.coins * 10 + self.distance * 0.5 + (100 if self.shield_active else 0) + self.repair_count * 40)
++
++        traffic_interval = max(28, int(70 / diff["traffic_mul"] - level * 2))
++        obstacle_interval = max(35, int(90 / diff["obstacle_mul"] - level * 2))
++        powerup_interval = 260
++        event_interval = max(180, 360 - level * 8)
++
++        self.spawn_traffic_timer += 1
++        self.spawn_obstacle_timer += 1
++        self.spawn_powerup_timer += 1
++        self.spawn_event_timer += 1
++
++        if self.spawn_traffic_timer >= traffic_interval:
++            self.spawn_traffic_timer = 0
++            if random.random() < 0.7:
++                self.spawn_traffic()
++
++        if self.spawn_obstacle_timer >= obstacle_interval:
++            self.spawn_obstacle_timer = 0
++            if random.random() < 0.75:
++                self.spawn_obstacle()
++
++        if self.spawn_powerup_timer >= powerup_interval:
++            self.spawn_powerup_timer = 0
++            if random.random() < 0.7:
++                self.spawn_powerup()
++
++        if self.spawn_event_timer >= event_interval:
++            self.spawn_event_timer = 0
++            if random.random() < 0.8:
++                self.spawn_event()
++
++        self.player.update()
++
++        for car in self.traffic[:]:
++            car.update(self.road_speed)
++            if car.y > HEIGHT + 100:
++                self.traffic.remove(car)
++
++        for obs in self.obstacles[:]:
++            obs.update(self.road_speed)
++            if obs.y > HEIGHT + 100:
++                self.obstacles.remove(obs)
++
++        for p in self.powerups[:]:
++            p.update(self.road_speed)
++            if p.y > HEIGHT + 100 or p.expired():
++                self.powerups.remove(p)
++
++        for e in self.road_events[:]:
++            e.update(self.road_speed)
++            if e.y > HEIGHT + 120:
++                self.road_events.remove(e)
++
++        for car in self.traffic[:]:
++            if self.player.rect.colliderect(car.rect):
++                crashed = self.handle_crash(car)
++                if not crashed and car in self.traffic:
++                    self.traffic.remove(car)
++
++        for obs in self.obstacles[:]:
++            if self.player.rect.colliderect(obs.rect):
++                if obs.kind == "barrier":
++                    crashed = self.handle_crash(obs)
++                    if not crashed and obs in self.obstacles:
++                        self.obstacles.remove(obs)
++                elif obs.kind == "oil":
++                    if self.player.move_cooldown == 0:
++                        if random.choice([True, False]) and self.player.lane > 0:
++                            self.player.move_left()
++                        elif self.player.lane < LANE_COUNT - 1:
++                            self.player.move_right()
++                        self.player.move_cooldown = 18
++                    if obs in self.obstacles:
++                        self.obstacles.remove(obs)
++                elif obs.kind == "pothole":
++                    self.slow_timer = max(self.slow_timer, 50)
++                    if obs in self.obstacles:
++                        self.obstacles.remove(obs)
++                elif obs.kind == "slow_zone":
++                    self.slow_timer = max(self.slow_timer, 90)
++                    if obs in self.obstacles:
++                        self.obstacles.remove(obs)
++
++        for p in self.powerups[:]:
++            if self.player.rect.colliderect(p.rect):
++                self.apply_powerup(p.type)
++                if p.type == "nitro":
++                    self.score += 35
++                elif p.type == "shield":
++                    self.score += 50
++                if p in self.powerups:
++                    self.powerups.remove(p)
++
++        for e in self.road_events[:]:
++            if self.player.rect.colliderect(e.rect):
++                if e.type == "moving_barrier":
++                    crashed = self.handle_crash(e)
++                    if not crashed and e in self.road_events:
++                        self.road_events.remove(e)
++                elif e.type == "speed_bump":
++                    self.slow_timer = max(self.slow_timer, 40)
++                elif e.type == "nitro_strip":
++                    if self.active_powerup is None:
++                        self.active_powerup = "nitro"
++                        self.powerup_end_time = pygame.time.get_ticks() + 3000
++
++        if self.distance >= FINISH_DISTANCE:
++            self.state = STATE_GAME_OVER
++            self.game_over = True
++
++        if self.state == STATE_GAME_OVER and not self.leaderboard_saved:
++            add_score_to_leaderboard(self.username if self.username.strip() else "Player", self.score, self.distance, self.coins)
++            self.leaderboard_saved = True
++
++    def draw_road(self):
++        SCREEN.fill(BG)
++        pygame.draw.rect(SCREEN, ROAD, (ROAD_MARGIN, 0, ROAD_WIDTH, HEIGHT))
++        pygame.draw.rect(SCREEN, WHITE, (ROAD_MARGIN - 4, 0, 4, HEIGHT))
++        pygame.draw.rect(SCREEN, WHITE, (ROAD_MARGIN + ROAD_WIDTH, 0, 4, HEIGHT))
++
++        for i in range(1, LANE_COUNT):
++            x = ROAD_MARGIN + i * LANE_WIDTH
++            for y in range(-40, HEIGHT, 80):
++                pygame.draw.rect(SCREEN, ROAD_LINE, (x - 4, y + int(self.road_offset), 8, 40), border_radius=3)
++
++    def draw_hud(self):
++        remaining = max(0, int(FINISH_DISTANCE - self.distance))
++        pygame.draw.rect(SCREEN, (0, 0, 0), (8, 8, 220, 132), border_radius=12)
++        pygame.draw.rect(SCREEN, WHITE, (8, 8, 220, 132), 2, border_radius=12)
++
++        draw_text(f"Player: {self.username if self.username else 'Player'}", FONT_TINY, WHITE, SCREEN, 18, 16)
++        draw_text(f"Score: {int(self.score)}", FONT_SMALL, WHITE, SCREEN, 18, 34)
++        draw_text(f"Coins: {self.coins}", FONT_SMALL, WHITE, SCREEN, 18, 58)
++        draw_text(f"Distance: {int(self.distance)}", FONT_SMALL, WHITE, SCREEN, 18, 82)
++        draw_text(f"Remaining: {remaining}", FONT_TINY, WHITE, SCREEN, 18, 108)
++
++        pygame.draw.rect(SCREEN, (0, 0, 0), (250, 8, 222, 132), border_radius=12)
++        pygame.draw.rect(SCREEN, WHITE, (250, 8, 222, 132), 2, border_radius=12)
++
++        active_text = "None"
++        if self.active_powerup == "nitro":
++            remain = max(0, (self.powerup_end_time - pygame.time.get_ticks()) // 1000 + 1)
++            active_text = f"Nitro ({remain}s)"
++        elif self.shield_active:
++            active_text = "Shield"
++        elif self.repair_count > 0:
++            active_text = f"Repair x{self.repair_count}"
++
++        draw_text("Power-Ups", FONT_SMALL, WHITE, SCREEN, 260, 20)
++        draw_text(f"Active: {active_text}", FONT_TINY, WHITE, SCREEN, 260, 50)
++        draw_text(f"Shield: {'ON' if self.shield_active else 'OFF'}", FONT_TINY, WHITE, SCREEN, 260, 76)
++        draw_text(f"Repair: {self.repair_count}", FONT_TINY, WHITE, SCREEN, 260, 100)
++
++    def draw_main_menu(self):
++        SCREEN.fill((25, 25, 35))
++        draw_text("RACER GAME", FONT_BIG, WHITE, SCREEN, WIDTH // 2, 120, center=True)
++        draw_text("TSIS 3", FONT_MED, YELLOW, SCREEN, WIDTH // 2, 170, center=True)
++        for btn in self.menu_buttons:
++            btn.draw(SCREEN)
++
++    def draw_username_screen(self):
++        SCREEN.fill((25, 25, 35))
++        draw_text("Enter Username", FONT_BIG, WHITE, SCREEN, WIDTH // 2, 170, center=True)
++        box = pygame.Rect(WIDTH // 2 - 150, 280, 300, 56)
++        pygame.draw.rect(SCREEN, WHITE, box, border_radius=10)
++        pygame.draw.rect(SCREEN, BLACK, box.inflate(-4, -4), border_radius=10)
++        draw_text(self.username if self.username else "Type your name...", FONT_SMALL, WHITE, SCREEN, box.x + 12, box.y + 15)
++        draw_text("Press ENTER to start", FONT_SMALL, LIGHT_GRAY, SCREEN, WIDTH // 2, 390, center=True)
++        self.back_button.draw(SCREEN)
++
++    def draw_settings(self):
++        SCREEN.fill((30, 30, 40))
++        draw_text("Settings", FONT_BIG, WHITE, SCREEN, WIDTH // 2, 120, center=True)
++
++        self.sound_button.text = f"Sound: {'On' if self.settings['sound'] else 'Off'}"
++        self.color_button.text = f"Car Color: {self.settings['car_color'].title()}"
++        self.diff_button.text = f"Difficulty: {self.settings['difficulty'].title()}"
++
++        self.sound_button.draw(SCREEN)
++        self.color_button.draw(SCREEN)
++        self.diff_button.draw(SCREEN)
++        self.settings_back_button.draw(SCREEN)
++
++    def draw_leaderboard(self):
++        SCREEN.fill((20, 30, 40))
++        draw_text("Top 10 Leaderboard", FONT_MED, WHITE, SCREEN, WIDTH // 2, 60, center=True)
++        data = load_leaderboard()
++
++        headers = ["#", "Name", "Score", "Dist"]
++        x_positions = [35, 90, 250, 365]
++        for i, h in enumerate(headers):
++            draw_text(h, FONT_SMALL, YELLOW, SCREEN, x_positions[i], 110)
++
++        y = 150
++        if not data:
++            draw_text("No scores yet", FONT_MED, LIGHT_GRAY, SCREEN, WIDTH // 2, HEIGHT // 2, center=True)
++        else:
++            for idx, item in enumerate(data, start=1):
++                draw_text(str(idx), FONT_SMALL, WHITE, SCREEN, x_positions[0], y)
++                draw_text(item["name"][:10], FONT_SMALL, WHITE, SCREEN, x_positions[1], y)
++                draw_text(str(item["score"]), FONT_SMALL, WHITE, SCREEN, x_positions[2], y)
++                draw_text(str(item["distance"]), FONT_SMALL, WHITE, SCREEN, x_positions[3], y)
++                y += 42
++
++        self.back_button.draw(SCREEN)
++
++    def draw_game_over(self):
++        SCREEN.fill((30, 10, 10))
++        title = "FINISH!" if self.distance >= FINISH_DISTANCE else "GAME OVER"
++        draw_text(title, FONT_BIG, WHITE, SCREEN, WIDTH // 2, 150, center=True)
++        draw_text(f"Player: {self.username if self.username else 'Player'}", FONT_MED, YELLOW, SCREEN, WIDTH // 2, 240, center=True)
++        draw_text(f"Score: {int(self.score)}", FONT_SMALL, WHITE, SCREEN, WIDTH // 2, 300, center=True)
++        draw_text(f"Distance: {int(self.distance)}", FONT_SMALL, WHITE, SCREEN, WIDTH // 2, 340, center=True)
++        draw_text(f"Coins: {self.coins}", FONT_SMALL, WHITE, SCREEN, WIDTH // 2, 380, center=True)
++        self.retry_button.draw(SCREEN)
++        self.main_menu_button.draw(SCREEN)
++
++    def draw_playing(self):
++        self.draw_road()
++        for e in self.road_events:
++            e.draw(SCREEN)
++        for car in self.traffic:
++            car.draw(SCREEN)
++        for obs in self.obstacles:
++            obs.draw(SCREEN)
++        for p in self.powerups:
++            p.draw(SCREEN)
++        self.player.draw(SCREEN)
++        self.draw_hud()
++
++    def handle_main_menu_events(self, event):
++        if self.menu_buttons[0].clicked(event):
++            self.state = STATE_USERNAME
++        elif self.menu_buttons[1].clicked(event):
++            self.state = STATE_LEADERBOARD
++        elif self.menu_buttons[2].clicked(event):
++            self.state = STATE_SETTINGS
++        elif self.menu_buttons[3].clicked(event):
++            self.running = False
++
++    def handle_username_events(self, event):
++        if self.back_button.clicked(event):
++            self.state = STATE_MAIN_MENU
++
++        if event.type == pygame.KEYDOWN:
++            if event.key == pygame.K_RETURN:
++                if not self.username.strip():
++                    self.username = "Player"
++                self.start_run()
++                self.state = STATE_PLAYING
++            elif event.key == pygame.K_BACKSPACE:
++                self.username = self.username[:-1]
++            else:
++                if len(self.username) < 12 and event.unicode.isprintable():
++                    self.username += event.unicode
++
++    def handle_settings_events(self, event):
++        if self.sound_button.clicked(event):
++            self.settings["sound"] = not self.settings["sound"]
++            save_settings(self.settings)
++
++        elif self.color_button.clicked(event):
++            colors = list(CAR_COLORS.keys())
++            idx = colors.index(self.settings["car_color"])
++            self.settings["car_color"] = colors[(idx + 1) % len(colors)]
++            save_settings(self.settings)
++
++        elif self.diff_button.clicked(event):
++            diffs = list(DIFFICULTY_PRESETS.keys())
++            idx = diffs.index(self.settings["difficulty"])
++            self.settings["difficulty"] = diffs[(idx + 1) % len(diffs)]
++            save_settings(self.settings)
++
++        elif self.settings_back_button.clicked(event):
++            self.player.set_color(self.settings["car_color"])
++            self.state = STATE_MAIN_MENU
++
++    def handle_leaderboard_events(self, event):
++        if self.back_button.clicked(event):
++            self.state = STATE_MAIN_MENU
++
++    def handle_game_over_events(self, event):
++        if self.retry_button.clicked(event):
++            self.start_run()
++            self.state = STATE_PLAYING
++        elif self.main_menu_button.clicked(event):
++            self.state = STATE_MAIN_MENU
++
++    def handle_playing_events(self, event):
++        if event.type == pygame.KEYDOWN:
++            if event.key == pygame.K_LEFT and self.player.move_cooldown == 0:
++                self.player.move_left()
++                self.player.move_cooldown = 8
++            elif event.key == pygame.K_RIGHT and self.player.move_cooldown == 0:
++                self.player.move_right()
++                self.player.move_cooldown = 8
++            elif event.key == pygame.K_ESCAPE:
++                self.state = STATE_MAIN_MENU
++
++    def events(self):
++        for event in pygame.event.get():
++            if event.type == pygame.QUIT:
++                self.running = False
++
++            if self.state == STATE_MAIN_MENU:
++                self.handle_main_menu_events(event)
++            elif self.state == STATE_USERNAME:
++                self.handle_username_events(event)
++            elif self.state == STATE_SETTINGS:
++                self.handle_settings_events(event)
++            elif self.state == STATE_LEADERBOARD:
++                self.handle_leaderboard_events(event)
++            elif self.state == STATE_PLAYING:
++                self.handle_playing_events(event)
++            elif self.state == STATE_GAME_OVER:
++                self.handle_game_over_events(event)
++
++    def update(self):
++        if self.state == STATE_PLAYING:
++            self.update_playing()
++
++    def draw(self):
++        if self.state == STATE_MAIN_MENU:
++            self.draw_main_menu()
++        elif self.state == STATE_USERNAME:
++            self.draw_username_screen()
++        elif self.state == STATE_SETTINGS:
++            self.draw_settings()
++        elif self.state == STATE_LEADERBOARD:
++            self.draw_leaderboard()
++        elif self.state == STATE_PLAYING:
++            self.draw_playing()
++        elif self.state == STATE_GAME_OVER:
++            self.draw_game_over()
++        pygame.display.flip()
++
++    def run(self):
++        while self.running:
++            CLOCK.tick(FPS)
++            self.events()
++            self.update()
++            self.draw()
++        pygame.quit()
++        sys.exit()
++
++
++if __name__ == "__main__":
++    game = Game()
++    game.run()
+\ No newline at end of file
+Index: practice10/snake/settings_manager.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/practice10/snake/settings_manager.py b/practice10/snake/settings_manager.py
+new file mode 100644
+--- /dev/null	(date 1776698326144)
++++ b/practice10/snake/settings_manager.py	(date 1776698326144)
+@@ -0,0 +1,27 @@
++import json, os
++
++SETTINGS_FILE = "settings.json"
++DEFAULTS = {
++    "snake_color": [80, 200, 80],
++    "grid_overlay": True,
++    "sound": False,
++}
++
++def load_settings():
++    if not os.path.exists(SETTINGS_FILE):
++        save_settings(DEFAULTS.copy())
++        return DEFAULTS.copy()
++    try:
++        with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
++            data = json.load(f)
++        for k, v in DEFAULTS.items():
++            if k not in data:
++                data[k] = v
++        return data
++    except Exception:
++        save_settings(DEFAULTS.copy())
++        return DEFAULTS.copy()
++
++def save_settings(settings):
++    with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
++        json.dump(settings, f, indent=4)
+\ No newline at end of file
+Index: practice10/snake/main.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/practice10/snake/main.py b/practice10/snake/main.py
+new file mode 100644
+--- /dev/null	(date 1776698396449)
++++ b/practice10/snake/main.py	(date 1776698396449)
+@@ -0,0 +1,221 @@
++import pygame, sys, random
++from config import *
++from game import SnakeGame, _t
++from db import init_db, save_session, get_leaderboard, get_personal_best
++from settings_manager import load_settings, save_settings
++
++pygame.init()
++SCREEN = pygame.display.set_mode((WIDTH, HEIGHT))
++pygame.display.set_caption("TSIS 4 — Snake Game")
++CLOCK = pygame.time.Clock()
++
++FONT_TITLE = pygame.font.SysFont("arial",44,bold=True)
++FONT_BIG   = pygame.font.SysFont("arial",32,bold=True)
++FONT_MED   = pygame.font.SysFont("arial",24,bold=True)
++FONT_SMALL = pygame.font.SysFont("arial",18)
++FONT_TINY  = pygame.font.SysFont("arial",15)
++
++S_MENU="MENU"; S_USERNAME="USERNAME"; S_PLAYING="PLAYING"
++S_GAME_OVER="GAME_OVER"; S_LEADERBOARD="LEADERBOARD"; S_SETTINGS="SETTINGS"
++
++DB_OK = init_db()
++
++class Button:
++    def __init__(self,x,y,w,h,text,bg=(80,80,80),hover=(130,130,130),fg=WHITE):
++        self.rect=pygame.Rect(x,y,w,h)
++        self.text,self.bg,self.hover,self.fg=text,bg,hover,fg
++    def draw(self,surf):
++        mx,my=pygame.mouse.get_pos()
++        col=self.hover if self.rect.collidepoint(mx,my) else self.bg
++        pygame.draw.rect(surf,col,self.rect,border_radius=12)
++        pygame.draw.rect(surf,WHITE,self.rect,2,border_radius=12)
++        img=FONT_SMALL.render(self.text,True,self.fg)
++        surf.blit(img,img.get_rect(center=self.rect.center))
++    def clicked(self,event):
++        return event.type==pygame.MOUSEBUTTONDOWN and event.button==1 and self.rect.collidepoint(event.pos)
++
++class App:
++    def __init__(self):
++        self.state=S_MENU; self.settings=load_settings()
++        self.username=""; self.typing=""
++        self.snake_game=None; self.personal_best=0
++        self.last_score=0; self.last_level=1; self.last_reason=""
++        self.session_saved=False; self.snake_timer=0
++        self._build_buttons()
++
++    def _build_buttons(self):
++        cx=WIDTH//2
++        self.btn_play  =Button(cx-110,290,220,55,"Play")
++        self.btn_lb    =Button(cx-110,360,220,55,"Leaderboard")
++        self.btn_set   =Button(cx-110,430,220,55,"Settings")
++        self.btn_quit  =Button(cx-110,500,220,55,"Quit")
++        self.btn_back  =Button(20,20,110,44,"Back")
++        self.btn_retry =Button(cx-110,440,220,55,"Retry")
++        self.btn_menu  =Button(cx-110,510,220,55,"Main Menu")
++        self.btn_grid  =Button(cx-110,240,220,48,"")
++        self.btn_sound =Button(cx-110,310,220,48,"")
++        self.btn_color =Button(cx-110,380,220,48,"")
++        self.btn_save  =Button(cx-110,470,220,52,"Save & Back")
++        self._color_opts=[[80,200,80],[80,140,255],[240,200,60],[220,80,80],[200,100,255]]
++        self._color_names=["Green","Blue","Yellow","Red","Purple"]
++        self._color_idx=0
++        for i,c in enumerate(self._color_opts):
++            if c==self.settings["snake_color"]: self._color_idx=i; break
++
++    def run(self):
++        while True:
++            dt=CLOCK.tick(60)
++            for event in pygame.event.get():
++                if event.type==pygame.QUIT: pygame.quit(); sys.exit()
++                if self.state==S_MENU:        self._ev_menu(event)
++                elif self.state==S_USERNAME:  self._ev_username(event)
++                elif self.state==S_PLAYING:   self._ev_playing(event)
++                elif self.state==S_GAME_OVER: self._ev_gameover(event)
++                elif self.state==S_LEADERBOARD:
++                    if self.btn_back.clicked(event): self.state=S_MENU
++                elif self.state==S_SETTINGS:  self._ev_settings(event)
++            self._update(dt); self._draw()
++
++    def _ev_menu(self,ev):
++        if self.btn_play.clicked(ev):  self.state=S_USERNAME; self.typing=self.username
++        elif self.btn_lb.clicked(ev):  self.state=S_LEADERBOARD
++        elif self.btn_set.clicked(ev): self.state=S_SETTINGS
++        elif self.btn_quit.clicked(ev):pygame.quit();sys.exit()
++
++    def _ev_username(self,ev):
++        if self.btn_back.clicked(ev): self.state=S_MENU
++        if ev.type==pygame.KEYDOWN:
++            if ev.key==pygame.K_RETURN:
++                self.username=self.typing.strip() or "Player"; self._start_game()
++            elif ev.key==pygame.K_BACKSPACE: self.typing=self.typing[:-1]
++            elif ev.unicode.isprintable() and len(self.typing)<16: self.typing+=ev.unicode
++
++    def _ev_playing(self,ev):
++        if ev.type==pygame.KEYDOWN:
++            k=ev.key
++            if k==pygame.K_ESCAPE: self.state=S_MENU
++            elif k in(pygame.K_UP,   pygame.K_w): self.snake_game.change_direction("UP")
++            elif k in(pygame.K_DOWN, pygame.K_s): self.snake_game.change_direction("DOWN")
++            elif k in(pygame.K_LEFT, pygame.K_a): self.snake_game.change_direction("LEFT")
++            elif k in(pygame.K_RIGHT,pygame.K_d): self.snake_game.change_direction("RIGHT")
++
++    def _ev_gameover(self,ev):
++        if self.btn_retry.clicked(ev): self._start_game()
++        elif self.btn_menu.clicked(ev): self.state=S_MENU
++
++    def _ev_settings(self,ev):
++        if self.btn_grid.clicked(ev):
++            self.settings["grid_overlay"]=not self.settings["grid_overlay"]
++        elif self.btn_sound.clicked(ev):
++            self.settings["sound"]=not self.settings["sound"]
++        elif self.btn_color.clicked(ev):
++            self._color_idx=(self._color_idx+1)%len(self._color_opts)
++            self.settings["snake_color"]=self._color_opts[self._color_idx]
++        elif self.btn_save.clicked(ev): save_settings(self.settings); self.state=S_MENU
++        elif self.btn_back.clicked(ev): self.state=S_MENU
++
++    def _start_game(self):
++        self.personal_best=get_personal_best(self.username) if DB_OK else 0
++        self.settings=load_settings()
++        self.snake_game=SnakeGame(self.settings,self.username,self.personal_best)
++        self.snake_timer=0; self.session_saved=False; self.state=S_PLAYING
++
++    def _update(self,dt):
++        if self.state!=S_PLAYING or not self.snake_game: return
++        step_ms=1000//self.snake_game.current_fps
++        self.snake_timer+=dt
++        while self.snake_timer>=step_ms:
++            self.snake_timer-=step_ms; self.snake_game.update()
++        if self.snake_game.game_over and not self.session_saved:
++            self.last_score=self.snake_game.score
++            self.last_level=self.snake_game.level
++            self.last_reason=self.snake_game.game_over_reason
++            if DB_OK: save_session(self.username,self.last_score,self.last_level)
++            self.personal_best=get_personal_best(self.username) if DB_OK else self.last_score
++            self.session_saved=True; self.state=S_GAME_OVER
++
++    def _draw(self):
++        SCREEN.fill(BG)
++        if self.state==S_MENU:         self._draw_menu()
++        elif self.state==S_USERNAME:   self._draw_username()
++        elif self.state==S_PLAYING:    self._draw_playing()
++        elif self.state==S_GAME_OVER:  self._draw_gameover()
++        elif self.state==S_LEADERBOARD:self._draw_leaderboard()
++        elif self.state==S_SETTINGS:   self._draw_settings()
++        pygame.display.flip()
++
++    def _draw_menu(self):
++        cx=WIDTH//2
++        _t(FONT_TITLE,"SNAKE GAME",WHITE,SCREEN,cx,100,center=True)
++        _t(FONT_SMALL,"TSIS 4",(160,160,160),SCREEN,cx,160,center=True)
++        if not DB_OK:
++            _t(FONT_TINY,"DB offline — scores won't be saved",(200,80,80),SCREEN,cx,210,center=True)
++        self.btn_play.draw(SCREEN); self.btn_lb.draw(SCREEN)
++        self.btn_set.draw(SCREEN);  self.btn_quit.draw(SCREEN)
++
++    def _draw_username(self):
++        cx=WIDTH//2
++        _t(FONT_BIG,"Enter Username",WHITE,SCREEN,cx,180,center=True)
++        box=pygame.Rect(cx-160,280,320,56)
++        pygame.draw.rect(SCREEN,WHITE,box,border_radius=10)
++        pygame.draw.rect(SCREEN,BLACK,box.inflate(-4,-4),border_radius=10)
++        _t(FONT_SMALL,self.typing or "Type your name...",
++           WHITE if self.typing else GRAY,SCREEN,box.x+12,box.y+15)
++        _t(FONT_SMALL,"Press ENTER to start",LIGHT_GRAY,SCREEN,cx,380,center=True)
++        self.btn_back.draw(SCREEN)
++
++    def _draw_playing(self):
++        if self.snake_game:
++            self.snake_game.draw(SCREEN)
++            self.snake_game.draw_hud(SCREEN,FONT_MED,FONT_SMALL)
++
++    def _draw_gameover(self):
++        cx=WIDTH//2
++        _t(FONT_TITLE,"GAME OVER",(220,60,60),SCREEN,cx,130,center=True)
++        _t(FONT_SMALL,self.last_reason,LIGHT_GRAY,SCREEN,cx,195,center=True)
++        _t(FONT_MED,f"Score: {self.last_score}",WHITE,SCREEN,cx,240,center=True)
++        _t(FONT_SMALL,f"Level reached: {self.last_level}",LIGHT_GRAY,SCREEN,cx,290,center=True)
++        _t(FONT_SMALL,f"Personal best: {self.personal_best}",YELLOW,SCREEN,cx,325,center=True)
++        self.btn_retry.draw(SCREEN); self.btn_menu.draw(SCREEN)
++
++    def _draw_leaderboard(self):
++        cx=WIDTH//2
++        _t(FONT_BIG,"Top 10 Leaderboard",WHITE,SCREEN,cx,60,center=True)
++        if not DB_OK:
++            _t(FONT_SMALL,"Database is offline",(200,80,80),SCREEN,cx,HEIGHT//2,center=True)
++            self.btn_back.draw(SCREEN); return
++        data=get_leaderboard(10)
++        xs=[28,70,270,360,430]
++        for i,(h,c) in enumerate(zip(["#","Name","Score","Lvl","Date"],[YELLOW]*5)):
++            _t(FONT_SMALL,h,c,SCREEN,xs[i],120)
++        y=158
++        if not data:
++            _t(FONT_SMALL,"No scores yet!",LIGHT_GRAY,SCREEN,cx,300,center=True)
++        else:
++            for rank,uname,score,level,played_at in data:
++                ds=played_at.strftime("%m/%d %H:%M") if played_at else "-"
++                _t(FONT_SMALL,str(rank),WHITE,SCREEN,xs[0],y)
++                _t(FONT_SMALL,uname[:14],WHITE,SCREEN,xs[1],y)
++                _t(FONT_SMALL,str(score),WHITE,SCREEN,xs[2],y)
++                _t(FONT_SMALL,str(level),LIGHT_GRAY,SCREEN,xs[3],y)
++                _t(FONT_TINY,ds,LIGHT_GRAY,SCREEN,xs[4],y+2)
++                y+=44
++        self.btn_back.draw(SCREEN)
++
++    def _draw_settings(self):
++        cx=WIDTH//2
++        _t(FONT_BIG,"Settings",WHITE,SCREEN,cx,120,center=True)
++        self.btn_grid.text =f"Grid: {'On' if self.settings['grid_overlay'] else 'Off'}"
++        self.btn_sound.text=f"Sound: {'On' if self.settings['sound'] else 'Off'}"
++        self.btn_color.text=f"Color: {self._color_names[self._color_idx]}"
++        sc=self.settings["snake_color"]
++        self.btn_color.bg=tuple(max(c-60,20) for c in sc)
++        self.btn_grid.draw(SCREEN); self.btn_sound.draw(SCREEN)
++        self.btn_color.draw(SCREEN)
++        prev=pygame.Rect(cx-20,445,40,40)
++        pygame.draw.rect(SCREEN,tuple(sc),prev,border_radius=8)
++        pygame.draw.rect(SCREEN,WHITE,prev,2,border_radius=8)
++        self.btn_save.draw(SCREEN)
++
++if __name__=="__main__":
++    app=App(); app.run()
+\ No newline at end of file
+Index: .idea/shelf/Uncommitted_changes_before_Update_at_13_04_2026_18_04_[Changes]1/shelved.patch
+===================================================================
+diff --git a/.idea/shelf/Uncommitted_changes_before_Update_at_13_04_2026_18_04_[Changes]1/shelved.patch b/.idea/shelf/Uncommitted_changes_before_Update_at_13_04_2026_18_04_[Changes]1/shelved.patch
+deleted file mode 100644
+--- a/.idea/shelf/Uncommitted_changes_before_Update_at_13_04_2026_18_04_[Changes]1/shelved.patch	(revision 251582ab168146b53d70e2bc2fa36726e1d0e01a)
++++ /dev/null	(revision 251582ab168146b53d70e2bc2fa36726e1d0e01a)
+@@ -1,178 +0,0 @@
+-Index: test/test.py
+-IDEA additional info:
+-Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+-<+>import re\r\na=input()\r\nb=re.search(r\"ab*\",a)\r\nprint(b.group())\r\n\r\nb=re.search(r\"ab{2,3}\",a)\r\nprint(b.group())\r\n\r\nb=re.findall(r\"[a-z]_[a-z]\",a)\r\nprint(*b)\r\n\r\nb=re.findall(r\"[A-Z][a-z]*\",a)\r\nprint(*b)\r\n\r\nb=re.findall(r\"^a.*b$\",a)\r\nprint(*b)\r\n\r\nprint(re.sub(r\"[ ,\\.]\", \":\", a))\r\n\r\nparts = [p for p in a.split(\"_\") if p]\r\nif not parts:\r\n    print(\"\")\r\nelse:\r\n    print(parts[0].lower() + \"\".join(p[:1].upper() + p[1:].lower() for p in parts[1:]))\r\n\r\nparts = [p for p in re.split(r\"(?=[A-Z])\", a) if p]\r\nprint(parts)\r\n\r\nprint(re.sub(r\"(?<!^)(?=[A-Z])\", \" \", a).strip())\r\n\r\nprint(re.sub(r\"(?<!^)(?=[A-Z])\", \"_\", a).lower())
+-Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+-<+>UTF-8
+-===================================================================
+-diff --git a/test/test.py b/test/test.py
+---- a/test/test.py	(revision 8fb65322dc6a02609df1cbac4dfd193c5767e740)
+-+++ b/test/test.py	(date 1774877270471)
+-@@ -1,31 +1,13 @@
+--import re
+--a=input()
+--b=re.search(r"ab*",a)
+--print(b.group())
+--
+--b=re.search(r"ab{2,3}",a)
+--print(b.group())
+--
+--b=re.findall(r"[a-z]_[a-z]",a)
+--print(*b)
+--
+--b=re.findall(r"[A-Z][a-z]*",a)
+--print(*b)
+--
+--b=re.findall(r"^a.*b$",a)
+--print(*b)
+--
+--print(re.sub(r"[ ,\.]", ":", a))
+--
+--parts = [p for p in a.split("_") if p]
+--if not parts:
+--    print("")
+--else:
+--    print(parts[0].lower() + "".join(p[:1].upper() + p[1:].lower() for p in parts[1:]))
+--
+--parts = [p for p in re.split(r"(?=[A-Z])", a) if p]
+--print(parts)
+--
+--print(re.sub(r"(?<!^)(?=[A-Z])", " ", a).strip())
+--
+--print(re.sub(r"(?<!^)(?=[A-Z])", "_", a).lower())
+-\ No newline at end of file
+-+import json
+-+a=input().strip()
+-+b=json.loads(a)
+-+c=int(input())
+-+for i in range(c):
+-+    z=input().split(".")
+-+    for j,k in b.items():
+-+        if j == z[-1]:
+-+            print("nigge")
+-+        if isinstance(k,dict) and j != z[-1]:
+-+            for v,b in k.items():
+-+                if v == z[-1]:
+-+                    print("a")
+-Index: test/pyagame test.py
+-IDEA additional info:
+-Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+-<+>UTF-8
+-===================================================================
+-diff --git a/test/pyagame test.py b/test/pyagame test.py
+-new file mode 100644
+---- /dev/null	(date 1775814925666)
+-+++ b/test/pyagame test.py	(date 1775814925666)
+-@@ -0,0 +1,111 @@
+-+import pygame
+-+
+-+pygame.init()
+-+
+-+screen=pygame.display.set_mode((800,600))
+-+screen.fill((255,255,255))
+-+font = pygame.font.SysFont("Arial", 20)
+-+clock=pygame.time.Clock()
+-+sf26=pygame.image.load("SF26.png").convert_alpha()
+-+sf26=pygame.transform.scale(sf26 ,( sf26.get_width()*0.1, sf26.get_height()*0.1))
+-+clock=pygame.time.Clock()
+-+f=0
+-+
+-+drawing=False
+-+lastpos=None
+-+WHITE = (255, 255, 255)
+-+BLACK = (0, 0, 0)
+-+RED = (255, 0, 0)
+-+GREEN = (0, 200, 0)
+-+BLUE = (0, 0, 255)
+-+GRAY = (200, 200, 200)
+-+
+-+red_btn = pygame.Rect(20, 20, 60, 40)
+-+green_btn = pygame.Rect(90, 20, 60, 40)
+-+blue_btn = pygame.Rect(160, 20, 60, 40)
+-+
+-+eraser_btn = pygame.Rect(250, 20, 100, 40)
+-+brush_btn = pygame.Rect(360, 20, 100, 40)
+-+
+-+line_btn = pygame.Rect(490, 20, 80, 40)
+-+circle_btn = pygame.Rect(580, 20, 90, 40)
+-+rect_btn = pygame.Rect(680, 20, 80, 40)
+-+current_color = BLUE
+-+tool = "brush"
+-+shape = "line"
+-+def ui():
+-+    pygame.draw.rect(screen, RED, red_btn)
+-+    pygame.draw.rect(screen, GREEN, green_btn)
+-+    pygame.draw.rect(screen, BLUE, blue_btn)
+-+
+-+    pygame.draw.rect(screen, GRAY, eraser_btn)
+-+    pygame.draw.rect(screen, GRAY, brush_btn)
+-+    pygame.draw.rect(screen, GRAY, line_btn)
+-+    pygame.draw.rect(screen, GRAY, circle_btn)
+-+    pygame.draw.rect(screen, GRAY, rect_btn)
+-+    red_text = font.render('Red', True, (0, 0, 0))
+-+    screen.blit(red_text, (35, 25))
+-+    blue_text = font.render('Green', True, (0, 0, 0))
+-+    screen.blit(blue_text, (115, 25))
+-+    green_text = font.render('Blue', True, (0, 0, 0))
+-+    screen.blit(green_text, (185, 25))
+-+
+-+    screen.blit(font.render("erase", True, BLACK), (270, 30))
+-+    screen.blit(font.render("brush", True, BLACK), (380, 30))
+-+    screen.blit(font.render("line", True, BLACK), (510, 30))
+-+    screen.blit(font.render("circle", True, BLACK), (595, 30))
+-+    screen.blit(font.render("rect", True, BLACK), (700, 30))
+-+while True:
+-+    f = f + 1
+-+    ui()
+-+    for event in pygame.event.get():
+-+        if event.type == pygame.QUIT:
+-+            pygame.quit()
+-+            exit()
+-+
+-+        if event.type == pygame.MOUSEBUTTONDOWN:
+-+            drawing = True
+-+            pos = event.pos
+-+            last_pos = event.pos
+-+            if red_btn.collidepoint(pos):
+-+                current_color = RED
+-+            elif green_btn.collidepoint(pos):
+-+                current_color = GREEN
+-+            elif blue_btn.collidepoint(pos):
+-+                current_color = BLUE
+-+            elif eraser_btn.collidepoint(pos):
+-+                tool = "eraser"
+-+            elif brush_btn.collidepoint(pos):
+-+                tool = "brush"
+-+            elif line_btn.collidepoint(pos):
+-+                shape = "line"
+-+            elif circle_btn.collidepoint(pos):
+-+                shape = "circle"
+-+            elif rect_btn.collidepoint(pos):
+-+                shape = "rect"
+-+            else:
+-+                drawing = True
+-+                last_pos = pos
+-+
+-+        if event.type == pygame.MOUSEBUTTONUP:
+-+            drawing = False
+-+            last_pos = None
+-+
+-+        elif event.type == pygame.MOUSEMOTION and drawing:
+-+            current_pos = event.pos
+-+
+-+            draw_color = WHITE if tool == "eraser" else current_color
+-+
+-+            if last_pos is not None:
+-+                if shape == "line":
+-+                    pygame.draw.line(screen, draw_color, last_pos, current_pos, 5)
+-+                elif shape == "circle":
+-+                    pygame.draw.circle(screen, draw_color, current_pos, 10)
+-+                elif shape == "rect":
+-+                    pygame.draw.rect(screen, draw_color, (current_pos[0], current_pos[1], 20, 20))
+-+
+-+            last_pos = current_pos
+-+
+-+
+-+    clock.tick(60)
+-+    pygame.display.update()
+-\ No newline at end of file
+Index: practice10/car_game/settings.json
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/practice10/car_game/settings.json b/practice10/car_game/settings.json
+new file mode 100644
+--- /dev/null	(date 1776697627220)
++++ b/practice10/car_game/settings.json	(date 1776697627220)
+@@ -0,0 +1,5 @@
++{
++    "sound": true,
++    "car_color": "red",
++    "difficulty": "hard"
++}
+\ No newline at end of file

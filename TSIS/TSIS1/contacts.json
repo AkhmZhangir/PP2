@@ -1,0 +1,86 @@
+[
+  {
+    "contact_id": 2,
+    "first_name": "Bob",
+    "last_name": "Johnson",
+    "phone": "+77020000002",
+    "email": "bob@example.com",
+    "birthday": null,
+    "group_name": null,
+    "phones": []
+  },
+  {
+    "contact_id": 3,
+    "first_name": "Carol",
+    "last_name": "",
+    "phone": "+77030000003",
+    "email": "carol@example.com",
+    "birthday": null,
+    "group_name": null,
+    "phones": []
+  },
+  {
+    "contact_id": 11,
+    "first_name": "alikhan",
+    "last_name": null,
+    "phone": "15",
+    "email": "alikhan@krutoi.kz",
+    "birthday": "2008-03-31",
+    "group_name": "Work",
+    "phones": [
+      {
+        "phone": "11",
+        "type": "work"
+      }
+    ]
+  },
+  {
+    "contact_id": 18,
+    "first_name": "korish",
+    "last_name": "kosov",
+    "phone": "8879456479865",
+    "email": "korish@legenda.kz",
+    "birthday": "2008-04-20",
+    "group_name": "Friend",
+    "phones": []
+  },
+  {
+    "contact_id": 19,
+    "first_name": "zamanbek",
+    "last_name": "bakitzhan",
+    "phone": "7",
+    "email": "zama@sigma.kz",
+    "birthday": "2007-07-05",
+    "group_name": "Friend",
+    "phones": [
+      {
+        "phone": "8",
+        "type": "work"
+      },
+      {
+        "phone": "9",
+        "type": "home"
+      }
+    ]
+  },
+  {
+    "contact_id": 24,
+    "first_name": "alikhan",
+    "last_name": null,
+    "phone": "11",
+    "email": "alikhan@krutoi.kz",
+    "birthday": null,
+    "group_name": null,
+    "phones": []
+  },
+  {
+    "contact_id": 25,
+    "first_name": "Bob",
+    "last_name": null,
+    "phone": "+77030000002",
+    "email": null,
+    "birthday": null,
+    "group_name": null,
+    "phones": []
+  }
+]
