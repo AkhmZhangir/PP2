@@ -102,11 +102,11 @@
       <recent name="C:\Users\misti\PycharmProjects\PP2\pracrice5" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\TSIS\TSIS1" />
       <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\practice9\MusicPlayer\music" />
       <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\practice9\clock" />
       <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\practice3" />
       <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\practice3\functions" />
-      <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject" />
     </key>
   </component>
   <component name="RunManager" selected="Python.phonebook (1)">
@@ -485,13 +485,22 @@
       <option name="project" value="LOCAL" />
       <updated>1776151580741</updated>
     </task>
-    <option name="localTasksCounter" value="31" />
+    <task id="LOCAL-00031" summary="TSIS updated">
+      <option name="closed" value="true" />
+      <created>1777296762457</created>
+      <option name="number" value="00031" />
+      <option name="presentableId" value="LOCAL-00031" />
+      <option name="project" value="LOCAL" />
+      <updated>1777296762457</updated>
+    </task>
+    <option name="localTasksCounter" value="32" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Home" />
     <MESSAGE value="broken file fix" />
     <MESSAGE value="3" />
-    <option name="LAST_COMMIT_MESSAGE" value="3" />
+    <MESSAGE value="TSIS updated" />
+    <option name="LAST_COMMIT_MESSAGE" value="TSIS updated" />
   </component>
 </project>

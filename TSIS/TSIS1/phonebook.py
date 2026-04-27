@@ -1,4 +1,4 @@
-# phonebook.py — Practice 9 (contact_id, без created_at)
+# phonebook.py — TSIS (contact_id, без created_at)
 
 import csv
 import json
@@ -330,7 +330,7 @@ def bulk_via_procedure():
 # ── Меню ───────────────────────────────────────────────────────
 MENU = """
 ╔══════════════════════════════════════╗
-║         PHONEBOOK  MENU  (P9)        ║
+║         PHONEBOOK  MENU              ║
 ╠══════════════════════════════════════╣
 ║  1  — Импорт из CSV                  ║
 ║  2  — Добавить контакт               ║
