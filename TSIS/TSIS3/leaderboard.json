@@ -1,5 +1,12 @@
 [
     {
+        "name": "cars",
+        "score": 5142,
+        "distance": 10004,
+        "coins": 0,
+        "date": "2026-04-27 19:07"
+    },
+    {
         "name": "5",
         "score": 5140,
         "distance": 10001,
@@ -61,12 +68,5 @@
         "distance": 949,
         "coins": 0,
         "date": "2026-04-21 08:41"
-    },
-    {
-        "name": "korish lox",
-        "score": 390,
-        "distance": 780,
-        "coins": 0,
-        "date": "2026-04-20 20:06"
     }
 ]

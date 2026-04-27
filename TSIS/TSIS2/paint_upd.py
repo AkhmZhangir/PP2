@@ -335,7 +335,7 @@ while True:
             pygame.draw.polygon(screen, current_color, [p1,p2,p3], brush_size)
         elif tool == "rhombus":
             cx = (start_pos[0]+ep[0])//2
-            cy = (start_pos[1]+ep[1])//2
+            cy = (start_pos[1]+ep[1])//2x
             hw = abs(ep[0]-start_pos[0])//2
             hh = abs(ep[1]-start_pos[1])//2
             pts = [(cx,cy-hh),(cx+hw,cy),(cx,cy+hh),(cx-hw,cy)]

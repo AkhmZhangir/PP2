@@ -58,6 +58,7 @@
     "Python.Get_started.executor": "Run",
     "Python.Syntx.executor": "Run",
     "Python.args_kwargs.executor": "Run",
+    "Python.car.executor": "Run",
     "Python.clock.executor": "Run",
     "Python.clock_experiment.executor": "Run",
     "Python.config (1).executor": "Run",
@@ -66,14 +67,18 @@
     "Python.connect.executor": "Run",
     "Python.create_tables.executor": "Run",
     "Python.data_types.executor": "Run",
+    "Python.db.executor": "Run",
     "Python.functions_arguments_returnvalues.executor": "Run",
     "Python.game.executor": "Run",
+    "Python.main.executor": "Run",
+    "Python.mini_paint.executor": "Run",
     "Python.music_player_pygame.executor": "Run",
     "Python.paint.executor": "Run",
     "Python.phonebook (1).executor": "Run",
     "Python.phonebook.executor": "Run",
     "Python.phonebook_improved (1).executor": "Run",
     "Python.phonebook_improved.executor": "Run",
+    "Python.settings_manager.executor": "Run",
     "Python.test.executor": "Run",
     "RunOnceActivity.MCP Project settings loaded": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
@@ -102,14 +107,14 @@
       <recent name="C:\Users\misti\PycharmProjects\PP2\pracrice5" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\test" />
+      <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\TSIS\TSIS2" />
       <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\TSIS\TSIS1" />
       <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\practice9\MusicPlayer\music" />
       <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\practice9\clock" />
-      <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\practice3" />
-      <recent name="C:\Users\defX7\Desktop\Laptop\PythonProject\practice3\functions" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.phonebook (1)">
+  <component name="RunManager" selected="Python.main">
     <configuration name="config" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="PythonProject" />
       <option name="ENV_FILES" value="" />
@@ -119,11 +124,11 @@
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/test" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/TSIS/TSIS4" />
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="C:\Users\defX7\Desktop\Laptop\PythonProject\TSIS\TSIS1\config.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/TSIS/TSIS4/config.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -132,7 +137,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="connect" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="db" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="PythonProject" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -141,11 +146,11 @@
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/test" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/TSIS/TSIS4" />
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="C:\Users\defX7\Desktop\Laptop\PythonProject\TSIS\TSIS1\connect.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/TSIS/TSIS4/db.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -154,7 +159,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="phonebook" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="game" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="PythonProject" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -163,11 +168,11 @@
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/TSIS/TSIS1" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/TSIS/TSIS4" />
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/TSIS/TSIS1/phonebook.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/TSIS/TSIS4/game.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -176,7 +181,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="phonebook" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="main" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="PythonProject" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -185,11 +190,11 @@
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/test" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/TSIS/TSIS4" />
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="C:\Users\defX7\Desktop\Laptop\PythonProject\TSIS\TSIS1\phonebook.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/TSIS/TSIS4/main.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -198,7 +203,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="phonebook_improved (1)" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="settings_manager" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="PythonProject" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -207,11 +212,11 @@
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/test" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/TSIS/TSIS4" />
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/test/phonebook_improved.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/TSIS/TSIS4/settings_manager.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -222,11 +227,11 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.phonebook (1)" />
-        <item itemvalue="Python.phonebook_improved (1)" />
+        <item itemvalue="Python.main" />
         <item itemvalue="Python.config" />
-        <item itemvalue="Python.connect" />
-        <item itemvalue="Python.phonebook" />
+        <item itemvalue="Python.settings_manager" />
+        <item itemvalue="Python.db" />
+        <item itemvalue="Python.game" />
       </list>
     </recent_temporary>
   </component>
@@ -493,7 +498,23 @@
       <option name="project" value="LOCAL" />
       <updated>1777296762457</updated>
     </task>
-    <option name="localTasksCounter" value="32" />
+    <task id="LOCAL-00032" summary="TSIS updated">
+      <option name="closed" value="true" />
+      <created>1777297489291</created>
+      <option name="number" value="00032" />
+      <option name="presentableId" value="LOCAL-00032" />
+      <option name="project" value="LOCAL" />
+      <updated>1777297489291</updated>
+    </task>
+    <task id="LOCAL-00033" summary="TSIS updated">
+      <option name="closed" value="true" />
+      <created>1777297783227</created>
+      <option name="number" value="00033" />
+      <option name="presentableId" value="LOCAL-00033" />
+      <option name="project" value="LOCAL" />
+      <updated>1777297783227</updated>
+    </task>
+    <option name="localTasksCounter" value="34" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
