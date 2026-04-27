@@ -1,4 +1,4 @@
-# phonebook.py — TSIS (contact_id, без created_at)
+# phonebook.py — TSIS
 
 import csv
 import json
@@ -63,7 +63,7 @@ def import_from_csv(filename='contacts.csv'):
     print(f"CSV импортирован: {imported} строк.")
 
 
-# ── Экспорт в JSON (без created_at) ───────────────────────────
+# ── Экспорт в JSON  ─────────────────────────────────────────────
 def export_to_json(filename='contacts.json'):
     with get_connection() as conn, conn.cursor() as cur:
         cur.execute("""
